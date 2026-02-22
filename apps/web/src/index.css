@@ -1,0 +1,35 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0f0f0f;
+  color: #e0e0e0;
+}
+
+button {
+  padding: 10px 20px;
+  background: #646cff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background: #535bf2;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+code {
+  background: #1e1e1e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+}
