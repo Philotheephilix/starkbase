@@ -25,7 +25,8 @@ export function buildApp(db?: Database.Database) {
   const authSvc = new AuthService(resolvedDb, walletSvc, platformSvc);
   const storageSvc = new StorageService(resolvedDb);
 
-  const app = Fastify({ logger: false });
+  // maxParamLength: EigenDA cert hex strings are several hundred chars; default 100 is too short
+  const app = Fastify({ logger: false, maxParamLength: 4096 });
 
   app.register(cors, { origin: true });
   app.register(helmet, { contentSecurityPolicy: false });

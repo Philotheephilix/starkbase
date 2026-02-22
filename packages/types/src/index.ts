@@ -108,6 +108,8 @@ export interface BlobMetadata {
   dataHash: string;
   size: number;
   contentType?: string;
+  uploaderWallet: string;
+  platformId: string;
   uploadedAt: string;
 }
 

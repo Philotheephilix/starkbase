@@ -1,12 +1,18 @@
-import type { FastifyInstance } from 'fastify';
-import { StorageService } from '../services/storage-service';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { StorageService } from '../services/storage-service';
 
-const svc = new StorageService();
+type AuthUser = { walletAddress: string; platformId: string };
 
-export async function storageRoutes(app: FastifyInstance) {
+export async function storageRoutes(
+  app: FastifyInstance,
+  opts: { storageSvc: StorageService }
+) {
+  const svc = opts.storageSvc;
+
   app.post<{ Body: { data: string; contentType?: string } }>('/upload', async (req) => {
+    const { walletAddress, platformId } = (req as FastifyRequest & { user: AuthUser }).user;
     const buffer = Buffer.from(req.body.data, 'base64');
-    return svc.upload(buffer, req.body.contentType);
+    return svc.upload(buffer, walletAddress, platformId, req.body.contentType);
   });
 
   app.get<{ Params: { blobId: string } }>('/blobs/:blobId', async (req, reply) => {
