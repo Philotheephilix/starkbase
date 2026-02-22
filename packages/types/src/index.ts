@@ -42,27 +42,37 @@ export interface SchemaDefinition {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export interface AuthInitiateResponse {
-  authUrl: string;
-  state: string;
+export interface RegisterRequest {
+  apiKey: string;
+  username: string;
+  password: string;
 }
 
-export interface AuthCallbackResponse {
-  jwt: string;
-  userIdentifier: string;
-  provider: string;
+export interface LoginRequest {
+  apiKey: string;
+  username: string;
+  password: string;
 }
 
-export interface AuthDeployResponse {
-  accountAddress: string;
+export interface AuthResult {
+  walletAddress: string;
   sessionToken: string;
-  transactionHash: string;
+  username: string;
+  platformId: string;
 }
 
-export interface AuthSession {
-  accountAddress: string;
-  provider: string;
-  expiresAt: number;
+export interface AuthUser {
+  userId: string;
+  username: string;
+  platformId: string;
+  walletAddress: string;
+}
+
+export interface Platform {
+  id: string;
+  name: string;
+  apiKey: string;
+  createdAt: number;
 }
 
 // ─── Contracts ────────────────────────────────────────────────────────────────

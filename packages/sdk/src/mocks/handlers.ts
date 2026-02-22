@@ -5,21 +5,35 @@ const BASE = 'https://api.starkbase.dev';
 export const handlers = [
   http.get(`${BASE}/health`, () => HttpResponse.json({ status: 'ok' })),
 
-  http.post(`${BASE}/auth/initiate`, () =>
-    HttpResponse.json({ authUrl: 'https://accounts.google.com/oauth?state=abc', state: 'abc' })
-  ),
-
-  http.post(`${BASE}/auth/deploy`, () =>
+  // Auth
+  http.post(`${BASE}/auth/register`, () =>
     HttpResponse.json({
-      accountAddress: '0xdeadbeef',
+      walletAddress: '0xdeadbeef',
       sessionToken: 'mock_token_123',
-      transactionHash: '0xabc',
+      username: 'alice',
+      platformId: 'platform_1',
     })
   ),
 
-  http.get(`${BASE}/auth/session`, () =>
-    HttpResponse.json({ accountAddress: '0xdeadbeef', provider: 'google', expiresAt: 9999999 })
+  http.post(`${BASE}/auth/login`, () =>
+    HttpResponse.json({
+      walletAddress: '0xdeadbeef',
+      sessionToken: 'mock_token_456',
+      username: 'alice',
+      platformId: 'platform_1',
+    })
   ),
+
+  http.get(`${BASE}/auth/me`, () =>
+    HttpResponse.json({
+      userId: 'user-uuid',
+      username: 'alice',
+      platformId: 'platform_1',
+      walletAddress: '0xdeadbeef',
+    })
+  ),
+
+  http.post(`${BASE}/auth/logout`, () => HttpResponse.json({ success: true })),
 
   http.post(`${BASE}/contracts/deploy`, () =>
     HttpResponse.json({

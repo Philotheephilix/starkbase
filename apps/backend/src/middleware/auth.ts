@@ -1,11 +1,11 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 
-const PUBLIC_PREFIXES = ['/auth', '/health'];
+// Exact paths that don't require a Bearer token
+const PUBLIC_PATHS = new Set(['/health', '/auth/register', '/auth/login', '/platforms']);
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
-  const isPublic = PUBLIC_PREFIXES.some((p) => request.url.startsWith(p));
-  if (isPublic) return;
+  if (PUBLIC_PATHS.has(request.url.split('?')[0])) return;
 
   const authHeader = request.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {

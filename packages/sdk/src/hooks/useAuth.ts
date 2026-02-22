@@ -1,45 +1,26 @@
 import { useState, useCallback } from 'react';
 import { useStarkbaseContext } from '../context/StarkbaseContext';
-import type { AuthSession, AuthInitiateResponse, AuthDeployResponse } from '@starkbase/types';
+import type { AuthUser, AuthResult } from '@starkbase/types';
 
 export function useAuth() {
   const client = useStarkbaseContext();
-  const [user, setUser] = useState<AuthSession | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const initiateAuth = useCallback(
-    async (
-      provider: 'google' | 'discord' | 'apple',
-      redirectUri: string
-    ): Promise<AuthInitiateResponse> => {
+  const register = useCallback(
+    async (params: { username: string; password: string; apiKey: string }): Promise<AuthResult> => {
       setIsLoading(true);
       setError(null);
       try {
-        return await client.auth.initiateAuth(provider, redirectUri);
-      } catch (e) {
-        setError(e as Error);
-        throw e;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [client]
-  );
-
-  const deployAccount = useCallback(
-    async (params: {
-      jwt: string;
-      zkProof: string[];
-      ephemeralPublicKey: string;
-      expirationBlock: number;
-    }): Promise<AuthDeployResponse> => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const result = await client.auth.deployAccount(params);
+        const result = await client.auth.register(params);
         client.setSessionToken(result.sessionToken);
-        setUser({ accountAddress: result.accountAddress, provider: 'google', expiresAt: 0 });
+        setUser({
+          userId: '',
+          username: result.username,
+          platformId: result.platformId,
+          walletAddress: result.walletAddress,
+        });
         return result;
       } catch (e) {
         setError(e as Error);
@@ -51,9 +32,37 @@ export function useAuth() {
     [client]
   );
 
-  const logout = useCallback(() => {
-    client.clearSessionToken();
-    setUser(null);
+  const login = useCallback(
+    async (params: { username: string; password: string; apiKey: string }): Promise<AuthResult> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await client.auth.login(params);
+        client.setSessionToken(result.sessionToken);
+        setUser({
+          userId: '',
+          username: result.username,
+          platformId: result.platformId,
+          walletAddress: result.walletAddress,
+        });
+        return result;
+      } catch (e) {
+        setError(e as Error);
+        throw e;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [client]
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await client.auth.logout();
+    } finally {
+      client.clearSessionToken();
+      setUser(null);
+    }
   }, [client]);
 
   return {
@@ -61,8 +70,8 @@ export function useAuth() {
     isAuthenticated: user !== null,
     isLoading,
     error,
-    initiateAuth,
-    deployAccount,
+    register,
+    login,
     logout,
   };
 }

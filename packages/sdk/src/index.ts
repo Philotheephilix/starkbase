@@ -15,6 +15,11 @@ export { useTokens } from './hooks/useTokens';
 // Types (re-exported for convenience)
 export type {
   StarkbaseConfig,
+  RegisterRequest,
+  LoginRequest,
+  AuthResult,
+  AuthUser,
+  Platform,
   SchemaDefinition,
   SchemaField,
   NFTMetadata,

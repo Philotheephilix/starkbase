@@ -1,71 +1,138 @@
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import type {
-  AuthInitiateResponse,
-  AuthDeployResponse,
-  AuthSession,
-} from '@starkbase/types';
+import type Database from 'better-sqlite3';
+import type { WalletService } from './wallet-service';
+import type { PlatformService } from './platform-service';
 
-const OAUTH_CONFIGS: Record<string, { authUrl: string; clientId: string }> = {
-  google: {
-    authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-    clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-  },
-  discord: {
-    authUrl: 'https://discord.com/api/oauth2/authorize',
-    clientId: process.env.DISCORD_CLIENT_ID ?? '',
-  },
-};
+const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret';
+const BCRYPT_ROUNDS = 12;
+const SESSION_TTL_SECONDS = 86400; // 24 hours
+
+export interface RegisterResult {
+  walletAddress: string;
+  sessionToken: string;
+  username: string;
+  platformId: string;
+}
+
+export interface AuthUser {
+  userId: string;
+  username: string;
+  platformId: string;
+  walletAddress: string;
+}
+
+interface UserRow {
+  id: string;
+  platform_id: string;
+  username: string;
+  password_hash: string;
+  wallet_address: string | null;
+  deployed: number;
+}
 
 export class AuthService {
-  private readonly jwtSecret = process.env.JWT_SECRET ?? 'dev-secret';
+  constructor(
+    private db: Database.Database,
+    private walletSvc: WalletService,
+    private platformSvc: PlatformService
+  ) {}
 
-  async initiateAuth(provider: string, redirectUri: string): Promise<AuthInitiateResponse> {
-    const config = OAUTH_CONFIGS[provider];
-    if (!config) throw new Error(`Unsupported provider: ${provider}`);
+  async register(apiKey: string, username: string, password: string): Promise<RegisterResult> {
+    const platform = this.platformSvc.getByApiKey(apiKey);
+    if (!platform) throw Object.assign(new Error('Invalid API key'), { statusCode: 401 });
 
-    const state = crypto.randomBytes(16).toString('hex');
-    const params = new URLSearchParams({
-      client_id: config.clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: provider === 'google' ? 'openid email profile' : 'identify email',
-      state,
+    const existing = this.db
+      .prepare('SELECT id FROM platform_users WHERE platform_id = ? AND username = ?')
+      .get(platform.id, username);
+    if (existing) throw Object.assign(new Error('Username already exists'), { statusCode: 409 });
+
+    const privateKey = this.walletSvc.derivePrivateKey(platform.id, username);
+    const computedAddress = this.walletSvc.computeAddress(privateKey);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    const userId = crypto.randomUUID();
+    this.db
+      .prepare(
+        'INSERT INTO platform_users (id, platform_id, username, password_hash, wallet_address, deployed) VALUES (?, ?, ?, ?, ?, 0)'
+      )
+      .run(userId, platform.id, username, passwordHash, computedAddress);
+
+    let walletAddress: string;
+    try {
+      const provider = this.walletSvc.getProvider();
+      const deployer = this.walletSvc.getDeployer(provider);
+      const result = await this.walletSvc.deployAccount(privateKey, provider, deployer);
+      walletAddress = result.address;
+    } catch (err) {
+      // Roll back the user row so re-registration is possible after a deploy failure
+      this.db.prepare('DELETE FROM platform_users WHERE id = ?').run(userId);
+      throw err;
+    }
+
+    this.db
+      .prepare('UPDATE platform_users SET wallet_address = ?, deployed = 1 WHERE id = ?')
+      .run(walletAddress, userId);
+
+    const sessionToken = this.signToken({
+      userId,
+      username,
+      platformId: platform.id,
+      walletAddress,
     });
-
-    return { authUrl: `${config.authUrl}?${params}`, state };
+    return { walletAddress, sessionToken, username, platformId: platform.id };
   }
 
-  createSessionToken(accountAddress: string, provider: string): string {
-    return jwt.sign(
-      { accountAddress, provider, iat: Math.floor(Date.now() / 1000) },
-      this.jwtSecret,
-      { expiresIn: '7d' }
-    );
+  async login(apiKey: string, username: string, password: string): Promise<RegisterResult> {
+    const platform = this.platformSvc.getByApiKey(apiKey);
+    if (!platform) throw Object.assign(new Error('Invalid API key'), { statusCode: 401 });
+
+    const row = this.db
+      .prepare('SELECT * FROM platform_users WHERE platform_id = ? AND username = ?')
+      .get(platform.id, username) as UserRow | undefined;
+
+    if (!row) throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
+
+    const valid = await bcrypt.compare(password, row.password_hash);
+    if (!valid) throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
+
+    const walletAddress = row.wallet_address ?? '';
+    const sessionToken = this.signToken({
+      userId: row.id,
+      username: row.username,
+      platformId: row.platform_id,
+      walletAddress,
+    });
+    return { walletAddress, sessionToken, username: row.username, platformId: row.platform_id };
   }
 
-  verifySessionToken(token: string): AuthSession {
-    const decoded = jwt.verify(token, this.jwtSecret) as AuthSession & { exp: number };
+  verifySession(sessionToken: string): AuthUser {
+    const payload = jwt.verify(sessionToken, JWT_SECRET) as {
+      userId: string;
+      username: string;
+      platformId: string;
+      walletAddress: string;
+    };
     return {
-      accountAddress: decoded.accountAddress,
-      provider: decoded.provider,
-      expiresAt: decoded.exp,
+      userId: payload.userId,
+      username: payload.username,
+      platformId: payload.platformId,
+      walletAddress: payload.walletAddress,
     };
   }
 
-  // Stub: real implementation requires SUMO contract on Starknet
-  async deployAccount(params: {
-    jwt: string;
-    zkProof: string[];
-    ephemeralPublicKey: string;
-    expirationBlock: number;
-  }): Promise<AuthDeployResponse> {
-    const accountAddress = `0x${crypto.randomBytes(32).toString('hex').slice(0, 63)}`;
-    const sessionToken = this.createSessionToken(accountAddress, 'google');
-    return {
-      accountAddress,
-      sessionToken,
-      transactionHash: `0x${crypto.randomBytes(32).toString('hex')}`,
-    };
+  revokeSession(_sessionToken: string): void {
+    // Stateless JWT — client-side logout drops the token
+    // Add sessions table lookup here if server-side revocation is needed
+  }
+
+  private signToken(payload: {
+    userId: string;
+    username: string;
+    platformId: string;
+    walletAddress: string;
+  }): string {
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: SESSION_TTL_SECONDS });
   }
 }

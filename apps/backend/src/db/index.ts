@@ -29,6 +29,17 @@ const SCHEMA = `
     expires_at INTEGER NOT NULL,
     created_at INTEGER DEFAULT (unixepoch())
   );
+
+  CREATE TABLE IF NOT EXISTS blobs (
+    id TEXT PRIMARY KEY,
+    data_hash TEXT NOT NULL,
+    commitment TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    content_type TEXT,
+    uploader_wallet TEXT NOT NULL,
+    platform_id TEXT NOT NULL,
+    uploaded_at INTEGER DEFAULT (unixepoch())
+  );
 `;
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {

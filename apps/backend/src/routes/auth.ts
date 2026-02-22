@@ -1,30 +1,41 @@
 import type { FastifyInstance } from 'fastify';
-import { AuthService } from '../services/auth-service';
+import type { AuthService } from '../services/auth-service';
 
-const svc = new AuthService();
+export async function authRoutes(
+  app: FastifyInstance,
+  opts: { authSvc: AuthService }
+) {
+  const { authSvc } = opts;
 
-export async function authRoutes(app: FastifyInstance) {
-  app.post<{ Body: { provider: string; redirectUri: string } }>('/initiate', async (req) => {
-    const { provider, redirectUri } = req.body;
-    return svc.initiateAuth(provider, redirectUri);
-  });
-
-  app.post<{ Body: { code: string; state: string; provider: string } }>(
-    '/callback',
-    async (req) => {
-      // TODO: exchange OAuth code for JWT with provider
-      return { jwt: 'placeholder_jwt', userIdentifier: 'user@example.com', provider: req.body.provider };
+  app.post<{ Body: { apiKey: string; username: string; password: string } }>(
+    '/register',
+    async (req, reply) => {
+      try {
+        return await authSvc.register(req.body.apiKey, req.body.username, req.body.password);
+      } catch (err: any) {
+        return reply.code(err.statusCode ?? 500).send({ error: err.message });
+      }
     }
   );
 
-  app.post<{
-    Body: { jwt: string; zkProof: string[]; ephemeralPublicKey: string; expirationBlock: number };
-  }>('/deploy', async (req) => {
-    return svc.deployAccount(req.body);
+  app.post<{ Body: { apiKey: string; username: string; password: string } }>(
+    '/login',
+    async (req, reply) => {
+      try {
+        return await authSvc.login(req.body.apiKey, req.body.username, req.body.password);
+      } catch (err: any) {
+        return reply.code(err.statusCode ?? 500).send({ error: err.message });
+      }
+    }
+  );
+
+  app.get('/me', async (req, reply) => {
+    const user = (req as typeof req & { user: unknown }).user;
+    if (!user) return reply.code(401).send({ error: 'Unauthorized' });
+    return user;
   });
 
-  app.get('/session', async (req) => {
-    const user = (req as typeof req & { user: { accountAddress: string; provider: string } }).user;
-    return { accountAddress: user.accountAddress, provider: user.provider };
+  app.post('/logout', async () => {
+    return { success: true }; // client drops the token
   });
 }
