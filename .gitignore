@@ -13,3 +13,6 @@ PLAN.md
 /contracts/target
 contracts/Scarb.lock
 /contracts/artifacts
+/contracts/nft/target
+/contracts/token
+contracts/nft/Scarb.lock

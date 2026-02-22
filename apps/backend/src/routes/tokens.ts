@@ -1,19 +1,38 @@
 import type { FastifyInstance } from 'fastify';
-import { TokenService } from '../services/token-service';
+import type { TokenService } from '../services/token-service';
 
-const svc = new TokenService();
+export async function tokenRoutes(
+  app: FastifyInstance,
+  opts: { tokenSvc: TokenService }
+) {
+  const svc = opts.tokenSvc;
 
-export async function tokenRoutes(app: FastifyInstance) {
-  app.post<{ Body: { name: string; symbol: string; initialSupply: string; platformId: string } }>(
-    '/create',
-    async (req) =>
-      svc.create(req.body.name, req.body.symbol, req.body.initialSupply, req.body.platformId)
+  app.post<{
+    Body: {
+      name: string;
+      symbol: string;
+      initialSupply: string;
+      recipientAddress: string;
+      platformId: string;
+    };
+  }>('/create', async (req) =>
+    svc.deployToken(
+      req.body.name,
+      req.body.symbol,
+      req.body.initialSupply,
+      req.body.recipientAddress,
+      req.body.platformId
+    )
   );
 
   app.post<{
     Params: { address: string };
-    Body: { recipient: string; amount: string; reason: string };
+    Body: { recipient: string; amount: string };
   }>('/:address/mint', async (req) =>
-    svc.mintReward(req.params.address, req.body.recipient, req.body.amount, req.body.reason)
+    svc.mintToken(req.params.address, req.body.recipient, req.body.amount)
+  );
+
+  app.get<{ Querystring: { platformId?: string } }>('/list', async (req) =>
+    svc.listDeployedTokens(req.query.platformId)
   );
 }

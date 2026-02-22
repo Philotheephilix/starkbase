@@ -52,6 +52,30 @@ const SCHEMA = `
     created_at INTEGER DEFAULT (unixepoch()),
     UNIQUE(platform_key, commitment_key)
   );
+
+  CREATE TABLE IF NOT EXISTS deployed_nfts (
+    id TEXT PRIMARY KEY,
+    contract_address TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    base_uri TEXT NOT NULL,
+    owner_address TEXT NOT NULL,
+    tx_hash TEXT NOT NULL,
+    platform_id TEXT NOT NULL,
+    deployed_at INTEGER DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS deployed_tokens (
+    id TEXT PRIMARY KEY,
+    contract_address TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    initial_supply TEXT NOT NULL,
+    recipient_address TEXT NOT NULL,
+    tx_hash TEXT NOT NULL,
+    platform_id TEXT NOT NULL,
+    deployed_at INTEGER DEFAULT (unixepoch())
+  );
 `;
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {
