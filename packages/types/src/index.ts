@@ -1,0 +1,171 @@
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+export interface StarkbaseConfig {
+  apiUrl?: string;
+  providerUrl?: string;
+  sessionToken?: string;
+}
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
+
+export type StorageMode = 'onchain' | 'eigenda' | 'hybrid';
+export type CommitmentAlgorithm = 'keccak256' | 'sha256';
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
+export interface SchemaField {
+  name: string;
+  type: string; // 'string' | 'u64' | 'felt252' | 'bool' | etc.
+  required: boolean;
+  indexed?: boolean;
+  maxLength?: number;
+  default?: string;
+}
+
+export interface SchemaPermissions {
+  create: string[]; // e.g. ['owner'] | ['public']
+  read: string[];
+  update: string[];
+  delete: string[];
+}
+
+export interface SchemaDefinition {
+  name: string;
+  version: string;
+  fields: SchemaField[];
+  storage: {
+    mode: StorageMode;
+    commitment: CommitmentAlgorithm;
+  };
+  permissions: SchemaPermissions;
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface AuthInitiateResponse {
+  authUrl: string;
+  state: string;
+}
+
+export interface AuthCallbackResponse {
+  jwt: string;
+  userIdentifier: string;
+  provider: string;
+}
+
+export interface AuthDeployResponse {
+  accountAddress: string;
+  sessionToken: string;
+  transactionHash: string;
+}
+
+export interface AuthSession {
+  accountAddress: string;
+  provider: string;
+  expiresAt: number;
+}
+
+// ─── Contracts ────────────────────────────────────────────────────────────────
+
+export interface DeployedContract {
+  contractAddress: string;
+  transactionHash: string;
+  schema: SchemaDefinition;
+  eigendaBlobId?: string; // set when storage.mode is 'hybrid'
+}
+
+export interface ContractRecord {
+  id: string;
+  contractAddress: string;
+  data: Record<string, unknown>;
+  eigendaBlobId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
+
+export interface UploadResponse {
+  blobId: string;
+  commitment: string;
+  dataHash: string;
+  size: number;
+}
+
+export interface BlobMetadata {
+  blobId: string;
+  commitment: string;
+  dataHash: string;
+  size: number;
+  contentType?: string;
+  uploadedAt: string;
+}
+
+// ─── NFT ──────────────────────────────────────────────────────────────────────
+
+export interface NFTAttribute {
+  trait_type: string;
+  value: string | number;
+}
+
+export interface NFTMetadata {
+  name: string;
+  description: string;
+  image: string;
+  attributes: NFTAttribute[];
+  external_url?: string;
+}
+
+export interface NFTCollection {
+  contractAddress: string;
+  name: string;
+  symbol: string;
+  platformId: string;
+  transactionHash: string;
+}
+
+export interface MintedNFT {
+  tokenId: string;
+  contractAddress: string;
+  recipient: string;
+  transactionHash: string;
+}
+
+// ─── Tokens ───────────────────────────────────────────────────────────────────
+
+export interface CreatedToken {
+  contractAddress: string;
+  name: string;
+  symbol: string;
+  initialSupply: string;
+  platformId: string;
+  transactionHash: string;
+}
+
+export interface MintRewardResponse {
+  transactionHash: string;
+  recipient: string;
+  amount: string;
+  reason: string;
+}
+
+// ─── Query ────────────────────────────────────────────────────────────────────
+
+export interface QueryOptions {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  orderDirection?: 'asc' | 'desc';
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface GraphQLResponse<T = unknown> {
+  data?: T;
+  errors?: Array<{ message: string; locations?: unknown[]; path?: unknown[] }>;
+}
