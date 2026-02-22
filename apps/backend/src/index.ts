@@ -12,6 +12,8 @@ import { authRoutes } from './routes/auth';
 import { contractRoutes } from './routes/contracts';
 import { storageRoutes } from './routes/storage';
 import { StorageService } from './services/storage-service';
+import { BlobRegistryService } from './services/blob-registry-service';
+import { blobRegistryRoutes } from './routes/blob-registry';
 import { queryRoutes } from './routes/query';
 import { nftRoutes } from './routes/nfts';
 import { tokenRoutes } from './routes/tokens';
@@ -24,6 +26,7 @@ export function buildApp(db?: Database.Database) {
   const platformSvc = new PlatformService(resolvedDb);
   const authSvc = new AuthService(resolvedDb, walletSvc, platformSvc);
   const storageSvc = new StorageService(resolvedDb);
+  const registrySvc = new BlobRegistryService(resolvedDb, walletSvc);
 
   // maxParamLength: EigenDA cert hex strings are several hundred chars; default 100 is too short
   const app = Fastify({ logger: false, maxParamLength: 4096 });
@@ -46,6 +49,7 @@ export function buildApp(db?: Database.Database) {
 
   app.register(contractRoutes, { prefix: '/contracts' });
   app.register(storageRoutes, { prefix: '/storage', storageSvc } as any);
+  app.register(blobRegistryRoutes, { prefix: '/registry', registrySvc } as any);
   app.register(queryRoutes, { prefix: '/query' });
   app.register(nftRoutes, { prefix: '/nfts' });
   app.register(tokenRoutes, { prefix: '/tokens' });
