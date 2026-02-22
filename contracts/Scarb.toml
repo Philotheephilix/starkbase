@@ -1,0 +1,11 @@
+[package]
+name = "starkbase_registry"
+version = "0.1.0"
+edition = "2024_07"
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+
+[dependencies]
+starknet = ">=2.8.0"

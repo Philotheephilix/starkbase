@@ -40,6 +40,18 @@ const SCHEMA = `
     platform_id TEXT NOT NULL,
     uploaded_at INTEGER DEFAULT (unixepoch())
   );
+
+  CREATE TABLE IF NOT EXISTS registry_entries (
+    id TEXT PRIMARY KEY,
+    platform_key TEXT NOT NULL,    -- felt252 hex derived from platform UUID
+    commitment_key TEXT NOT NULL,  -- felt252 hex derived from EigenDA commitment
+    platform_id TEXT NOT NULL,     -- original platform UUID
+    commitment TEXT NOT NULL,      -- original SHA256 commitment hex
+    wallet_address TEXT NOT NULL,
+    tx_hash TEXT,                  -- Starknet transaction hash
+    created_at INTEGER DEFAULT (unixepoch()),
+    UNIQUE(platform_key, commitment_key)
+  );
 `;
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {

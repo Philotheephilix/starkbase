@@ -10,3 +10,6 @@ pnpm-lock.yaml
 PLAN.md
 /docs
 .claude/settings.local.json
+/contracts/target
+contracts/Scarb.lock
+/contracts/artifacts
