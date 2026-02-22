@@ -1,0 +1,12 @@
+
+node_modules
+dist
+build
+.turbo
+.env
+.env.local
+*.tsbuildinfo
+pnpm-lock.yaml
+PLAN.md
+/docs
+.claude/settings.local.json
