@@ -12,6 +12,7 @@ export { useQuery } from './hooks/useQuery';
 export { useNFTs } from './hooks/useNFTs';
 export { useTokens } from './hooks/useTokens';
 export { useSchemas } from './hooks/useSchemas';
+export { useBlobs } from './hooks/useBlobs';
 
 // Types (re-exported for convenience)
 export type {
@@ -41,4 +42,5 @@ export type {
   SchemaRecord,
   DocumentRecord,
   DocumentVersion,
+  BlobFile,
 } from '@starkbase/types';

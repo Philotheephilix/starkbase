@@ -184,6 +184,21 @@ export interface GraphQLResponse<T = unknown> {
   errors?: Array<{ message: string; locations?: unknown[]; path?: unknown[] }>;
 }
 
+// ─── Blob Files ───────────────────────────────────────────────────────────────
+
+export interface BlobFile {
+  id: string;           // UUID (user-facing id)
+  platformId: string;
+  blobId: string;       // EigenDA cert hex
+  commitment: string;   // SHA-256 of raw bytes
+  filename?: string;
+  mimeType?: string;
+  size: number;
+  deleted: boolean;
+  uploadedBy?: string;
+  createdAt: string;
+}
+
 // ─── Schema Document Store ────────────────────────────────────────────────────
 
 export interface SchemaFieldDef {
