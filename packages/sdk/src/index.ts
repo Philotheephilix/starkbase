@@ -11,6 +11,7 @@ export { useStorage } from './hooks/useStorage';
 export { useQuery } from './hooks/useQuery';
 export { useNFTs } from './hooks/useNFTs';
 export { useTokens } from './hooks/useTokens';
+export { useSchemas } from './hooks/useSchemas';
 
 // Types (re-exported for convenience)
 export type {
@@ -35,4 +36,9 @@ export type {
   QueryOptions,
   PaginatedResponse,
   GraphQLResponse,
+  SchemaFieldDef,
+  SchemaCollectionDef,
+  SchemaRecord,
+  DocumentRecord,
+  DocumentVersion,
 } from '@starkbase/types';

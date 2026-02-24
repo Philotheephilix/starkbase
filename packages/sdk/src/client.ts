@@ -6,6 +6,8 @@ import { StorageModule } from './modules/storage';
 import { QueryModule } from './modules/query';
 import { NFTsModule } from './modules/nfts';
 import { TokensModule } from './modules/tokens';
+import { PlatformsModule } from './modules/platforms';
+import { SchemasModule, SchemaCollection } from './modules/schemas';
 
 export class StarkbaseClient {
   private http: AxiosInstance;
@@ -13,7 +15,10 @@ export class StarkbaseClient {
   constructor(private config: StarkbaseConfig = {}) {
     this.http = axios.create({
       baseURL: config.apiUrl ?? 'https://api.starkbase.dev',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.platformId ? { 'X-Platform-ID': config.platformId } : {}),
+      },
     });
 
     if (config.sessionToken) {
@@ -29,10 +34,16 @@ export class StarkbaseClient {
     delete this.http.defaults.headers.common['Authorization'];
   }
 
-  get auth()      { return new AuthModule(this.http); }
+  get auth()      { return new AuthModule(this.http, this.config.apiKey); }
   get contracts() { return new ContractsModule(this.http); }
   get storage()   { return new StorageModule(this.http); }
   get query()     { return new QueryModule(this.http); }
   get nfts()      { return new NFTsModule(this.http); }
   get tokens()    { return new TokensModule(this.http); }
+  get platforms() { return new PlatformsModule(this.http); }
+  get schemas()   { return new SchemasModule(this.http); }
+
+  schema(name: string): SchemaCollection {
+    return new SchemaCollection(this.http, name);
+  }
 }

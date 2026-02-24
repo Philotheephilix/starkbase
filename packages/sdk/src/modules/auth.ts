@@ -1,16 +1,25 @@
 import type { AxiosInstance } from 'axios';
-import type { RegisterRequest, LoginRequest, AuthResult, AuthUser } from '@starkbase/types';
+import type { AuthResult, AuthUser } from '@starkbase/types';
 
 export class AuthModule {
-  constructor(private http: AxiosInstance) {}
+  constructor(
+    private http: AxiosInstance,
+    private apiKey: string | undefined
+  ) {}
 
-  async register(req: RegisterRequest): Promise<AuthResult> {
-    const { data } = await this.http.post('/auth/register', req);
+  async register(req: { username: string; password: string }): Promise<AuthResult> {
+    const { data } = await this.http.post('/auth/register', {
+      ...req,
+      apiKey: this.apiKey,
+    });
     return data;
   }
 
-  async login(req: LoginRequest): Promise<AuthResult> {
-    const { data } = await this.http.post('/auth/login', req);
+  async login(req: { username: string; password: string }): Promise<AuthResult> {
+    const { data } = await this.http.post('/auth/login', {
+      ...req,
+      apiKey: this.apiKey,
+    });
     return data;
   }
 

@@ -4,6 +4,8 @@ export interface StarkbaseConfig {
   apiUrl?: string;
   providerUrl?: string;
   sessionToken?: string;
+  platformId?: string;
+  apiKey?: string;
 }
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -180,4 +182,42 @@ export interface PaginatedResponse<T> {
 export interface GraphQLResponse<T = unknown> {
   data?: T;
   errors?: Array<{ message: string; locations?: unknown[]; path?: unknown[] }>;
+}
+
+// ─── Schema Document Store ────────────────────────────────────────────────────
+
+export interface SchemaFieldDef {
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  required?: boolean;
+}
+
+export interface SchemaCollectionDef {
+  fields: Record<string, SchemaFieldDef>;
+}
+
+export interface SchemaRecord {
+  id: string;
+  platformId: string;
+  name: string;
+  fields: Record<string, SchemaFieldDef>;
+  createdAt: string;
+}
+
+export interface DocumentRecord {
+  key: string;
+  blobId: string;
+  commitment: string;
+  version: number;
+  createdBy: string;
+  createdAt: string;
+  data?: Record<string, unknown>;
+}
+
+export interface DocumentVersion {
+  blobId: string;
+  commitment: string;
+  version: number;
+  deleted: boolean;
+  createdBy: string;
+  createdAt: string;
 }

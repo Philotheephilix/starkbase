@@ -9,7 +9,7 @@ export function useAuth() {
   const [error, setError] = useState<Error | null>(null);
 
   const register = useCallback(
-    async (params: { username: string; password: string; apiKey: string }): Promise<AuthResult> => {
+    async (params: { username: string; password: string }): Promise<AuthResult> => {
       setIsLoading(true);
       setError(null);
       try {
@@ -33,7 +33,7 @@ export function useAuth() {
   );
 
   const login = useCallback(
-    async (params: { username: string; password: string; apiKey: string }): Promise<AuthResult> => {
+    async (params: { username: string; password: string }): Promise<AuthResult> => {
       setIsLoading(true);
       setError(null);
       try {

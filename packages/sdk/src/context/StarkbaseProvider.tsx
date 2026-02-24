@@ -11,7 +11,7 @@ export function StarkbaseProvider({ children, ...config }: StarkbaseProviderProp
   const client = useMemo(
     () => new StarkbaseClient(config),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [config.apiUrl, config.providerUrl]
+    [config.apiUrl, config.providerUrl, config.platformId, config.apiKey]
   );
 
   return (
