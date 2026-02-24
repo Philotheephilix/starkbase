@@ -51,3 +51,35 @@ describe('createDb', () => {
     ).toThrow();
   });
 });
+
+describe('schema tables', () => {
+  it('schemas table exists and accepts inserts', () => {
+    const db = createDb(':memory:');
+    const id = 'schema-1';
+    db.prepare(
+      `INSERT INTO schemas (id, platform_id, name, fields) VALUES (?, ?, ?, ?)`
+    ).run(id, 'plat-1', 'users', JSON.stringify({ name: { type: 'string', required: true } }));
+
+    const row = db.prepare('SELECT * FROM schemas WHERE id = ?').get(id) as any;
+    expect(row.name).toBe('users');
+    expect(JSON.parse(row.fields).name.type).toBe('string');
+    db.close();
+  });
+
+  it('schema_documents table exists and enforces unique (platform, schema, key, version)', () => {
+    const db = createDb(':memory:');
+    db.prepare(`INSERT INTO schemas (id, platform_id, name, fields) VALUES (?, ?, ?, ?)`).run(
+      's1', 'p1', 'col', '{}'
+    );
+    db.prepare(
+      `INSERT INTO schema_documents (id, platform_id, schema_name, doc_key, blob_id, commitment, version, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run('d1', 'p1', 'col', 'key1', 'blob1', 'commit1', 1, '0xwallet');
+
+    expect(() => {
+      db.prepare(
+        `INSERT INTO schema_documents (id, platform_id, schema_name, doc_key, blob_id, commitment, version, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run('d2', 'p1', 'col', 'key1', 'blob2', 'commit2', 1, '0xwallet');
+    }).toThrow();
+    db.close();
+  });
+});

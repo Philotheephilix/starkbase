@@ -76,6 +76,30 @@ const SCHEMA = `
     platform_id TEXT NOT NULL,
     deployed_at INTEGER DEFAULT (unixepoch())
   );
+  CREATE TABLE IF NOT EXISTS schemas (
+    id          TEXT PRIMARY KEY,
+    platform_id TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    fields      TEXT NOT NULL,
+    created_at  INTEGER DEFAULT (unixepoch()),
+    UNIQUE(platform_id, name)
+  );
+
+  CREATE TABLE IF NOT EXISTS schema_documents (
+    id          TEXT PRIMARY KEY,
+    platform_id TEXT NOT NULL,
+    schema_name TEXT NOT NULL,
+    doc_key     TEXT NOT NULL,
+    blob_id     TEXT NOT NULL,
+    commitment  TEXT NOT NULL,
+    version     INTEGER NOT NULL DEFAULT 1,
+    deleted     INTEGER NOT NULL DEFAULT 0,
+    created_by  TEXT NOT NULL,
+    created_at  INTEGER DEFAULT (unixepoch()),
+    UNIQUE(platform_id, schema_name, doc_key, version),
+    FOREIGN KEY (platform_id, schema_name) REFERENCES schemas(platform_id, name)
+  );
+
 `;
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {
