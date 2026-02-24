@@ -4,14 +4,16 @@ import PlatformView from './views/PlatformView';
 import AuthView from './views/AuthView';
 import SchemasView from './views/SchemasView';
 import DocumentsView from './views/DocumentsView';
+import BlobsView from './views/BlobsView';
 
-type Tab = 'platform' | 'auth' | 'schemas' | 'docs';
+type Tab = 'platform' | 'auth' | 'schemas' | 'docs' | 'blobs';
 
 const NAV: { id: Tab; label: string; icon: string }[] = [
   { id: 'platform', label: 'Platform',  icon: '⬡' },
   { id: 'auth',     label: 'Auth',      icon: '⎆' },
   { id: 'schemas',  label: 'Schemas',   icon: '◈' },
   { id: 'docs',     label: 'Documents', icon: '▦' },
+  { id: 'blobs',    label: 'Blobs',     icon: '⊞' },
 ];
 
 export default function App() {
@@ -63,6 +65,7 @@ export default function App() {
         {tab === 'auth'     && <AuthView />}
         {tab === 'schemas'  && <SchemasView />}
         {tab === 'docs'     && <DocumentsView />}
+        {tab === 'blobs'    && <BlobsView />}
       </main>
     </div>
   );

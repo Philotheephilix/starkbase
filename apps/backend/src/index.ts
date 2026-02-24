@@ -21,6 +21,8 @@ import { nftRoutes } from './routes/nfts';
 import { tokenRoutes } from './routes/tokens';
 import { SchemaService } from './services/schema-service';
 import { schemaRoutes } from './routes/schemas';
+import { BlobFileService } from './services/blob-file-service';
+import { blobFileRoutes } from './routes/blob-files';
 
 const MASTER_SECRET = process.env.STARKBASE_MASTER_SECRET ?? 'dev-master-secret';
 
@@ -34,6 +36,7 @@ export function buildApp(db?: Database.Database) {
   const nftSvc = new NFTService(resolvedDb, walletSvc);
   const tokenSvc = new TokenService(resolvedDb, walletSvc);
   const schemaSvc = new SchemaService(resolvedDb);
+  const blobFileSvc = new BlobFileService(resolvedDb);
 
   // maxParamLength: EigenDA cert hex strings are several hundred chars; default 100 is too short
   const app = Fastify({ logger: false, maxParamLength: 4096 });
@@ -61,6 +64,7 @@ export function buildApp(db?: Database.Database) {
   app.register(nftRoutes, { prefix: '/nfts', nftSvc } as any);
   app.register(tokenRoutes, { prefix: '/tokens', tokenSvc } as any);
   app.register(schemaRoutes, { prefix: '/schemas', schemaSvc } as any);
+  app.register(blobFileRoutes, { prefix: '/blobs', blobFileSvc } as any);
 
   return app;
 }

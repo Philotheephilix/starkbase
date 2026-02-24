@@ -100,6 +100,19 @@ const SCHEMA = `
     FOREIGN KEY (platform_id, schema_name) REFERENCES schemas(platform_id, name)
   );
 
+  CREATE TABLE IF NOT EXISTS blob_files (
+    id          TEXT PRIMARY KEY,      -- UUID (user-facing id)
+    platform_id TEXT NOT NULL,
+    blob_id     TEXT NOT NULL,         -- EigenDA cert hex
+    commitment  TEXT NOT NULL,         -- SHA-256 of raw bytes
+    filename    TEXT,                  -- original file name
+    mime_type   TEXT,                  -- MIME content-type
+    size        INTEGER NOT NULL,      -- bytes
+    deleted     INTEGER NOT NULL DEFAULT 0,
+    uploaded_by TEXT,                  -- wallet address of uploader
+    created_at  INTEGER DEFAULT (unixepoch())
+  );
+
 `;
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {
