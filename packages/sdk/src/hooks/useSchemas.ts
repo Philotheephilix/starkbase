@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import { useStarkbaseContext } from '../context/StarkbaseContext';
-import type { SchemaCollectionDef, SchemaRecord } from '@starkbase/types';
+import type { SchemaCollectionDef, SchemaRecord, SchemaVerifyResult } from '@starkbase/types';
 
 export function useSchemas() {
   const client = useStarkbaseContext();
 
   const createSchema = useCallback(
-    (name: string, def: SchemaCollectionDef): Promise<SchemaRecord> =>
-      client.schemas.create(name, def),
+    (name: string, def: SchemaCollectionDef, opts?: { onchain?: boolean }): Promise<SchemaRecord> =>
+      client.schemas.create(name, def, opts),
     [client]
   );
 
@@ -16,10 +16,15 @@ export function useSchemas() {
     [client]
   );
 
+  const verifySchema = useCallback(
+    (name: string): Promise<SchemaVerifyResult> => client.schemas.verify(name),
+    [client]
+  );
+
   const collection = useCallback(
     (name: string) => client.schema(name),
     [client]
   );
 
-  return { createSchema, getSchema, collection };
+  return { createSchema, getSchema, verifySchema, collection };
 }

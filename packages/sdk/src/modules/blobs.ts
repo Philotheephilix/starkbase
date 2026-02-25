@@ -7,10 +7,11 @@ export class BlobsModule {
   /**
    * Upload a file to EigenDA.
    * Accepts a browser File, Uint8Array, or ArrayBuffer.
+   * Pass onchain=true to anchor the commitment in the registry contract (immutable after upload).
    */
   async upload(
     file: File | Uint8Array | ArrayBuffer,
-    options?: { filename?: string; mimeType?: string }
+    options?: { filename?: string; mimeType?: string; onchain?: boolean }
   ): Promise<BlobFile> {
     let bytes: Uint8Array;
     let filename = options?.filename;
@@ -33,6 +34,7 @@ export class BlobsModule {
       data: base64,
       filename,
       mimeType,
+      onchain: options?.onchain,
     });
     return data as BlobFile;
   }
@@ -60,8 +62,15 @@ export class BlobsModule {
     return new Uint8Array(data as ArrayBuffer);
   }
 
-  /** Soft-delete a blob (marks deleted in SQLite; EigenDA data is permanent). */
+  /** Soft-delete a blob (marks deleted in SQLite; EigenDA data is permanent).
+   *  Throws 403 if the blob was uploaded with onchain=true. */
   async delete(id: string): Promise<void> {
     await this.http.delete(`/blobs/${id}`);
+  }
+
+  /** Verify onchain consistency: compare SQLite commitment key with the onchain registry. */
+  async verify(id: string): Promise<import('@starkbase/types').BlobVerifyResult> {
+    const { data } = await this.http.get(`/blobs/${id}/verify`);
+    return data;
   }
 }

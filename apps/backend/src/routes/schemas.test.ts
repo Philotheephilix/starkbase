@@ -51,7 +51,7 @@ describe('Schema routes', () => {
       headers: { Authorization: `Bearer ${sessionToken}` },
       payload: { name: 'users', fields: { name: { type: 'string', required: true } } },
     });
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(201);
     expect(JSON.parse(res.body).name).toBe('users');
   });
 

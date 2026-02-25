@@ -40,7 +40,9 @@ export type {
   SchemaFieldDef,
   SchemaCollectionDef,
   SchemaRecord,
+  SchemaVerifyResult,
   DocumentRecord,
   DocumentVersion,
   BlobFile,
+  BlobVerifyResult,
 } from '@starkbase/types';

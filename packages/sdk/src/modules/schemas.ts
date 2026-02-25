@@ -65,13 +65,26 @@ export class SchemaCollection {
 export class SchemasModule {
   constructor(private http: AxiosInstance) {}
 
-  async create(name: string, def: SchemaCollectionDef): Promise<SchemaRecord> {
-    const { data } = await this.http.post('/schemas', { name, fields: def.fields });
+  async create(
+    name: string,
+    def: SchemaCollectionDef,
+    opts?: { onchain?: boolean }
+  ): Promise<SchemaRecord> {
+    const { data } = await this.http.post('/schemas', {
+      name,
+      fields: def.fields,
+      onchain: opts?.onchain,
+    });
     return data;
   }
 
   async get(name: string): Promise<SchemaRecord> {
     const { data } = await this.http.get(`/schemas/${name}`);
+    return data;
+  }
+
+  async verify(name: string): Promise<import('@starkbase/types').SchemaVerifyResult> {
+    const { data } = await this.http.get(`/schemas/${name}/verify`);
     return data;
   }
 }

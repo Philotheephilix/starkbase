@@ -195,8 +195,18 @@ export interface BlobFile {
   mimeType?: string;
   size: number;
   deleted: boolean;
+  onchain: boolean;
+  onchainTxHash?: string;
   uploadedBy?: string;
   createdAt: string;
+}
+
+export interface BlobVerifyResult {
+  verified: boolean;
+  commitment: string;         // SHA-256 stored in SQLite
+  onchainKey: string;         // toFelt252(commitment) — felt252 anchored onchain
+  txHash: string | null;
+  onchainWalletAddress: string | null;
 }
 
 // ─── Schema Document Store ────────────────────────────────────────────────────
@@ -215,7 +225,18 @@ export interface SchemaRecord {
   platformId: string;
   name: string;
   fields: Record<string, SchemaFieldDef>;
+  onchain: boolean;
+  onchainTxHash?: string;
+  onchainCommitment?: string;
   createdAt: string;
+}
+
+export interface SchemaVerifyResult {
+  verified: boolean;
+  commitment: string;         // SHA-256 of the schema definition
+  onchainKey: string;         // toFelt252(commitment) — felt252 anchored onchain
+  txHash: string | null;
+  onchainWalletAddress: string | null;
 }
 
 export interface DocumentRecord {

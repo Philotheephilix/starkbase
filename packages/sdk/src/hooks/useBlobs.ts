@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useStarkbaseContext } from '../context/StarkbaseContext';
-import type { BlobFile } from '@starkbase/types';
+import type { BlobFile, BlobVerifyResult } from '@starkbase/types';
 
 export function useBlobs() {
   const client = useStarkbaseContext();
 
   const upload = useCallback(
-    (file: File | Uint8Array | ArrayBuffer, options?: { filename?: string; mimeType?: string }): Promise<BlobFile> =>
+    (file: File | Uint8Array | ArrayBuffer, options?: { filename?: string; mimeType?: string; onchain?: boolean }): Promise<BlobFile> =>
       client.blobs.upload(file, options),
     [client]
   );
@@ -28,5 +28,10 @@ export function useBlobs() {
     [client]
   );
 
-  return { upload, list, getMeta, get, delete: remove };
+  const verify = useCallback(
+    (id: string): Promise<BlobVerifyResult> => client.blobs.verify(id),
+    [client]
+  );
+
+  return { upload, list, getMeta, get, delete: remove, verify };
 }

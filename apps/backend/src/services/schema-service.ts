@@ -1,8 +1,19 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import type Database from 'better-sqlite3';
+import { toFelt252 } from './blob-registry-service';
+import type { BlobRegistryService } from './blob-registry-service';
 
 const EIGENDA_PROXY_URL = process.env.EIGENDA_PROXY_URL ?? 'http://127.0.0.1:3100';
+
+function contractAddress(): string {
+  const addr = process.env.BLOB_REGISTRY_CONTRACT;
+  if (!addr) throw Object.assign(
+    new Error('BLOB_REGISTRY_CONTRACT env var not set — deploy the registry contract first'),
+    { statusCode: 500 }
+  );
+  return addr;
+}
 
 export interface SchemaFieldDef {
   type: 'string' | 'number' | 'boolean' | 'object' | 'array';
@@ -14,6 +25,9 @@ export interface SchemaRecord {
   platformId: string;
   name: string;
   fields: Record<string, SchemaFieldDef>;
+  onchain: boolean;
+  onchainTxHash?: string;
+  onchainCommitment?: string;
   createdAt: string;
 }
 
@@ -36,11 +50,22 @@ export interface DocumentVersion {
   createdAt: string;
 }
 
+export interface SchemaVerifyResult {
+  verified: boolean;
+  commitment: string;       // SHA-256 stored in SQLite
+  onchainKey: string;       // toFelt252(commitment) — what's anchored onchain
+  txHash: string | null;
+  onchainWalletAddress: string | null;
+}
+
 type SchemaRow = {
   id: string;
   platform_id: string;
   name: string;
   fields: string;
+  onchain: number;
+  onchain_tx_hash: string | null;
+  onchain_commitment: string | null;
   created_at: number;
 };
 
@@ -58,25 +83,61 @@ type DocumentRow = {
 };
 
 export class SchemaService {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private db: Database.Database,
+    private registrySvc?: BlobRegistryService
+  ) {}
 
-  createSchema(
+  /** Compute a deterministic commitment for a schema definition. */
+  static schemaCommitment(name: string, fields: Record<string, SchemaFieldDef>): string {
+    const canonical = JSON.stringify({ name, fields }, Object.keys(fields).sort());
+    return crypto.createHash('sha256').update(canonical).digest('hex');
+  }
+
+  async createSchema(
     platformId: string,
     name: string,
-    fields: Record<string, SchemaFieldDef>
-  ): SchemaRecord {
+    fields: Record<string, SchemaFieldDef>,
+    opts?: { onchain?: boolean; walletAddress?: string }
+  ): Promise<SchemaRecord> {
     const id = crypto.randomUUID();
+    const onchain = opts?.onchain === true;
+    let txHash: string | null = null;
+    let commitment: string | null = null;
+
+    if (onchain) {
+      if (!this.registrySvc) {
+        throw Object.assign(new Error('Registry service not available for onchain anchoring'), { statusCode: 500 });
+      }
+      if (!opts?.walletAddress) {
+        throw Object.assign(new Error('walletAddress required for onchain schema'), { statusCode: 400 });
+      }
+      commitment = SchemaService.schemaCommitment(name, fields);
+      txHash = await this.registrySvc.create(
+        contractAddress(),
+        platformId,
+        opts.walletAddress,
+        commitment
+      );
+    }
+
     try {
       this.db
-        .prepare('INSERT INTO schemas (id, platform_id, name, fields) VALUES (?, ?, ?, ?)')
-        .run(id, platformId, name, JSON.stringify(fields));
+        .prepare(
+          `INSERT INTO schemas (id, platform_id, name, fields, onchain, onchain_tx_hash, onchain_commitment)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(id, platformId, name, JSON.stringify(fields), onchain ? 1 : 0, txHash, commitment);
     } catch (err: any) {
       if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         throw Object.assign(new Error(`Schema '${name}' already exists`), { statusCode: 409 });
       }
       throw err;
     }
-    return { id, platformId, name, fields, createdAt: new Date().toISOString() };
+
+    return this._rowToRecord(
+      this.db.prepare('SELECT * FROM schemas WHERE id = ?').get(id) as SchemaRow
+    );
   }
 
   getSchema(platformId: string, name: string): SchemaRecord {
@@ -86,12 +147,35 @@ export class SchemaService {
     if (!row) {
       throw Object.assign(new Error(`Schema '${name}' not found`), { statusCode: 404 });
     }
+    return this._rowToRecord(row);
+  }
+
+  /** Verify onchain consistency: compare SQLite commitment key with onchain registry. */
+  async verifySchema(platformId: string, name: string): Promise<SchemaVerifyResult> {
+    if (!this.registrySvc) {
+      throw Object.assign(new Error('Registry service not available'), { statusCode: 500 });
+    }
+    const schema = this.getSchema(platformId, name);
+    if (!schema.onchain || !schema.onchainCommitment) {
+      throw Object.assign(new Error(`Schema '${name}' was not anchored onchain`), { statusCode: 400 });
+    }
+
+    const onchainKey = toFelt252(schema.onchainCommitment);
+    let walletAddress: string | null = null;
+    let verified = false;
+    try {
+      walletAddress = await this.registrySvc.fetch(contractAddress(), platformId, schema.onchainCommitment);
+      verified = walletAddress !== '0x0' && walletAddress !== '0x';
+    } catch {
+      verified = false;
+    }
+
     return {
-      id: row.id,
-      platformId: row.platform_id,
-      name: row.name,
-      fields: JSON.parse(row.fields),
-      createdAt: new Date(row.created_at * 1000).toISOString(),
+      verified,
+      commitment: schema.onchainCommitment,
+      onchainKey,
+      txHash: schema.onchainTxHash ?? null,
+      onchainWalletAddress: walletAddress,
     };
   }
 
@@ -149,21 +233,10 @@ export class SchemaService {
       )
       .run(crypto.randomUUID(), platformId, schemaName, docKey, blobId, commitment, uploaderWallet);
 
-    return {
-      key: docKey,
-      blobId,
-      commitment,
-      version: 1,
-      createdBy: uploaderWallet,
-      createdAt: new Date().toISOString(),
-    };
+    return { key: docKey, blobId, commitment, version: 1, createdBy: uploaderWallet, createdAt: new Date().toISOString() };
   }
 
-  async findDocument(
-    platformId: string,
-    schemaName: string,
-    docKey: string
-  ): Promise<DocumentRecord> {
+  async findDocument(platformId: string, schemaName: string, docKey: string): Promise<DocumentRecord> {
     const row = this.getLatestRow(platformId, schemaName, docKey);
     if (!row || row.deleted) {
       throw Object.assign(new Error(`Document '${docKey}' not found`), { statusCode: 404 });
@@ -229,6 +302,12 @@ export class SchemaService {
     uploaderWallet: string
   ): Promise<DocumentRecord> {
     const schema = this.getSchema(platformId, schemaName);
+    if (schema.onchain) {
+      throw Object.assign(
+        new Error(`Schema '${schemaName}' is anchored onchain — documents cannot be updated`),
+        { statusCode: 403 }
+      );
+    }
     this.validateDocument(schema.fields, data);
 
     const existing = this.getLatestRow(platformId, schemaName, docKey);
@@ -245,28 +324,19 @@ export class SchemaService {
            (id, platform_id, schema_name, doc_key, blob_id, commitment, version, deleted, created_by)
          VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`
       )
-      .run(
-        crypto.randomUUID(),
-        platformId,
-        schemaName,
-        docKey,
-        blobId,
-        commitment,
-        newVersion,
-        uploaderWallet
-      );
+      .run(crypto.randomUUID(), platformId, schemaName, docKey, blobId, commitment, newVersion, uploaderWallet);
 
-    return {
-      key: docKey,
-      blobId,
-      commitment,
-      version: newVersion,
-      createdBy: uploaderWallet,
-      createdAt: new Date().toISOString(),
-    };
+    return { key: docKey, blobId, commitment, version: newVersion, createdBy: uploaderWallet, createdAt: new Date().toISOString() };
   }
 
   deleteDocument(platformId: string, schemaName: string, docKey: string): void {
+    const schema = this.getSchema(platformId, schemaName);
+    if (schema.onchain) {
+      throw Object.assign(
+        new Error(`Schema '${schemaName}' is anchored onchain — documents cannot be deleted`),
+        { statusCode: 403 }
+      );
+    }
     const row = this.getLatestRow(platformId, schemaName, docKey);
     if (!row || row.deleted) {
       throw Object.assign(new Error(`Document '${docKey}' not found`), { statusCode: 404 });
@@ -279,11 +349,7 @@ export class SchemaService {
       .run(platformId, schemaName, docKey, row.version);
   }
 
-  getHistory(
-    platformId: string,
-    schemaName: string,
-    docKey: string
-  ): DocumentVersion[] {
+  getHistory(platformId: string, schemaName: string, docKey: string): DocumentVersion[] {
     const rows = this.db
       .prepare(
         `SELECT * FROM schema_documents
@@ -301,11 +367,7 @@ export class SchemaService {
     }));
   }
 
-  private getLatestRow(
-    platformId: string,
-    schemaName: string,
-    docKey: string
-  ): DocumentRow | null {
+  private getLatestRow(platformId: string, schemaName: string, docKey: string): DocumentRow | null {
     return (
       (this.db
         .prepare(
@@ -334,5 +396,18 @@ export class SchemaService {
       { responseType: 'arraybuffer' }
     );
     return JSON.parse(Buffer.from(res.data as ArrayBuffer).toString('utf8'));
+  }
+
+  private _rowToRecord(row: SchemaRow): SchemaRecord {
+    return {
+      id: row.id,
+      platformId: row.platform_id,
+      name: row.name,
+      fields: JSON.parse(row.fields),
+      onchain: row.onchain === 1,
+      onchainTxHash: row.onchain_tx_hash ?? undefined,
+      onchainCommitment: row.onchain_commitment ?? undefined,
+      createdAt: new Date(row.created_at * 1000).toISOString(),
+    };
   }
 }

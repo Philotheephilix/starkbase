@@ -13,24 +13,45 @@ export async function schemaRoutes(
 ) {
   const svc = opts.schemaSvc;
 
-  app.post<{ Body: { name: string; fields: Record<string, SchemaFieldDef> } }>(
+  // POST /schemas — create schema (onchain=true anchors commitment in registry contract)
+  app.post<{ Body: { name: string; fields: Record<string, SchemaFieldDef>; onchain?: boolean } }>(
     '/',
     async (req, reply) => {
-      const { platformId } = getUser(req);
+      const { walletAddress, platformId } = getUser(req);
       try {
-        return svc.createSchema(platformId, req.body.name, req.body.fields);
+        const schema = await svc.createSchema(
+          platformId,
+          req.body.name,
+          req.body.fields,
+          { onchain: req.body.onchain, walletAddress }
+        );
+        return reply.code(201).send(schema);
       } catch (err: any) {
         return reply.code(err.statusCode ?? 500).send({ error: err.message });
       }
     }
   );
 
+  // GET /schemas/:schemaName — get schema definition
   app.get<{ Params: { schemaName: string } }>(
     '/:schemaName',
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {
         return svc.getSchema(platformId, req.params.schemaName);
+      } catch (err: any) {
+        return reply.code(err.statusCode ?? 500).send({ error: err.message });
+      }
+    }
+  );
+
+  // GET /schemas/:schemaName/verify — cross-reference SQLite commitment vs onchain registry
+  app.get<{ Params: { schemaName: string } }>(
+    '/:schemaName/verify',
+    async (req, reply) => {
+      const { platformId } = getUser(req);
+      try {
+        return await svc.verifySchema(platformId, req.params.schemaName);
       } catch (err: any) {
         return reply.code(err.statusCode ?? 500).send({ error: err.message });
       }

@@ -77,11 +77,14 @@ const SCHEMA = `
     deployed_at INTEGER DEFAULT (unixepoch())
   );
   CREATE TABLE IF NOT EXISTS schemas (
-    id          TEXT PRIMARY KEY,
-    platform_id TEXT NOT NULL,
-    name        TEXT NOT NULL,
-    fields      TEXT NOT NULL,
-    created_at  INTEGER DEFAULT (unixepoch()),
+    id               TEXT PRIMARY KEY,
+    platform_id      TEXT NOT NULL,
+    name             TEXT NOT NULL,
+    fields           TEXT NOT NULL,
+    onchain          INTEGER NOT NULL DEFAULT 0,
+    onchain_tx_hash  TEXT,
+    onchain_commitment TEXT,
+    created_at       INTEGER DEFAULT (unixepoch()),
     UNIQUE(platform_id, name)
   );
 
@@ -101,25 +104,39 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS blob_files (
-    id          TEXT PRIMARY KEY,      -- UUID (user-facing id)
-    platform_id TEXT NOT NULL,
-    blob_id     TEXT NOT NULL,         -- EigenDA cert hex
-    commitment  TEXT NOT NULL,         -- SHA-256 of raw bytes
-    filename    TEXT,                  -- original file name
-    mime_type   TEXT,                  -- MIME content-type
-    size        INTEGER NOT NULL,      -- bytes
-    deleted     INTEGER NOT NULL DEFAULT 0,
-    uploaded_by TEXT,                  -- wallet address of uploader
-    created_at  INTEGER DEFAULT (unixepoch())
+    id               TEXT PRIMARY KEY,      -- UUID (user-facing id)
+    platform_id      TEXT NOT NULL,
+    blob_id          TEXT NOT NULL,         -- EigenDA cert hex
+    commitment       TEXT NOT NULL,         -- SHA-256 of raw bytes
+    filename         TEXT,                  -- original file name
+    mime_type        TEXT,                  -- MIME content-type
+    size             INTEGER NOT NULL,      -- bytes
+    deleted          INTEGER NOT NULL DEFAULT 0,
+    onchain          INTEGER NOT NULL DEFAULT 0,
+    onchain_tx_hash  TEXT,
+    uploaded_by      TEXT,                  -- wallet address of uploader
+    created_at       INTEGER DEFAULT (unixepoch())
   );
 
 `;
+
+// Migrations for columns added after initial deployment (SQLite ignores duplicate column errors).
+const MIGRATIONS = [
+  `ALTER TABLE schemas ADD COLUMN onchain INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE schemas ADD COLUMN onchain_tx_hash TEXT`,
+  `ALTER TABLE schemas ADD COLUMN onchain_commitment TEXT`,
+  `ALTER TABLE blob_files ADD COLUMN onchain INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE blob_files ADD COLUMN onchain_tx_hash TEXT`,
+];
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {
   const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
+  for (const m of MIGRATIONS) {
+    try { db.exec(m); } catch { /* column already exists */ }
+  }
   return db;
 }
 

@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { useSchemas } from '@starkbase/sdk';
-import type { SchemaFieldDef, SchemaRecord } from '@starkbase/sdk';
+import type { SchemaFieldDef, SchemaRecord, SchemaVerifyResult } from '@starkbase/sdk';
 
 type FieldEntry = { name: string; type: SchemaFieldDef['type']; required: boolean };
 
 const FIELD_TYPES: SchemaFieldDef['type'][] = ['string', 'number', 'boolean', 'object', 'array'];
 
 export default function SchemasView() {
-  const { createSchema, getSchema } = useSchemas();
+  const { createSchema, getSchema, verifySchema } = useSchemas();
 
   // Create form
   const [schemaName, setSchemaName] = useState('');
   const [fields, setFields] = useState<FieldEntry[]>([
     { name: '', type: 'string', required: false },
   ]);
+  const [onchain, setOnchain] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createResult, setCreateResult] = useState<SchemaRecord | null>(null);
@@ -23,6 +24,12 @@ export default function SchemasView() {
   const [getting, setGetting] = useState(false);
   const [getError, setGetError] = useState('');
   const [getResult, setGetResult] = useState<SchemaRecord | null>(null);
+
+  // Verify
+  const [verifyName, setVerifyName] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<SchemaVerifyResult | null>(null);
+  const [verifyError, setVerifyError] = useState('');
 
   // Saved schema names list (localStorage-backed)
   const [savedSchemas, setSavedSchemas] = useState<string[]>(() => {
@@ -53,7 +60,7 @@ export default function SchemasView() {
         if (f.required) def.required = true;
         fieldsMap[f.name.trim()] = def;
       }
-      const schema = await createSchema(schemaName.trim(), { fields: fieldsMap });
+      const schema = await createSchema(schemaName.trim(), { fields: fieldsMap }, { onchain });
       setCreateResult(schema);
       // Persist schema name
       const updated = [...new Set([...savedSchemas, schema.name])];
@@ -61,6 +68,7 @@ export default function SchemasView() {
       localStorage.setItem('sb_schemas', JSON.stringify(updated));
       setSchemaName('');
       setFields([{ name: '', type: 'string', required: false }]);
+      setOnchain(false);
     } catch (err: any) {
       setCreateError(err?.response?.data?.error ?? err.message ?? 'Failed to create schema');
     } finally {
@@ -81,6 +89,22 @@ export default function SchemasView() {
       setGetError(err?.response?.data?.error ?? err.message ?? 'Schema not found');
     } finally {
       setGetting(false);
+    }
+  };
+
+  const handleVerify = async (nameOverride?: string) => {
+    const target = nameOverride ?? verifyName;
+    if (!target.trim()) return;
+    setVerifyError('');
+    setVerifyResult(null);
+    setVerifying(true);
+    try {
+      const result = await verifySchema(target.trim());
+      setVerifyResult(result);
+    } catch (err: any) {
+      setVerifyError(err?.response?.data?.error ?? err.message ?? 'Verification failed');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -168,11 +192,30 @@ export default function SchemasView() {
             </div>
           ))}
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <button type="button" className="btn btn-s btn-sm" onClick={addField}>
               + Add field
             </button>
-            <button className="btn btn-p btn-sm" type="submit" disabled={creating || !schemaName.trim()}>
+
+            {/* Onchain toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={onchain}
+                onChange={e => setOnchain(e.target.checked)}
+                style={{ accentColor: 'var(--accent)', cursor: 'pointer', width: 14, height: 14 }}
+              />
+              <span style={{ fontSize: 12, color: onchain ? 'var(--accent)' : 'var(--text2)' }}>
+                onchain
+              </span>
+            </label>
+            {onchain && (
+              <span className="badge badge-blue" style={{ fontSize: 10 }}>
+                commitment anchored to registry contract
+              </span>
+            )}
+
+            <button className="btn btn-p btn-sm" type="submit" disabled={creating || !schemaName.trim()} style={{ marginLeft: 'auto' }}>
               {creating ? <><div className="spin" /> Creating…</> : 'Create schema'}
             </button>
           </div>
@@ -182,7 +225,15 @@ export default function SchemasView() {
 
         {createResult && (
           <div style={{ marginTop: 14 }}>
-            <div className="out-label">Created</div>
+            <div className="out-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Created
+              {createResult.onchain && <span className="badge badge-blue">onchain</span>}
+              {createResult.onchainTxHash && (
+                <span style={{ fontSize: 10, color: 'var(--text2)', fontFamily: 'monospace' }}>
+                  tx: {createResult.onchainTxHash.slice(0, 18)}…
+                </span>
+              )}
+            </div>
             <pre className="out ok">{JSON.stringify(createResult, null, 2)}</pre>
           </div>
         )}
@@ -216,7 +267,15 @@ export default function SchemasView() {
         {getResult && (
           <>
             <div style={{ marginBottom: 10 }}>
-              <div className="out-label" style={{ marginBottom: 6 }}>Fields</div>
+              <div className="out-label" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                Fields
+                {getResult.onchain && <span className="badge badge-blue">onchain</span>}
+                {getResult.onchainTxHash && (
+                  <span style={{ fontSize: 10, color: 'var(--text2)', fontFamily: 'monospace' }}>
+                    tx: {getResult.onchainTxHash.slice(0, 18)}…
+                  </span>
+                )}
+              </div>
               {Object.entries(getResult.fields).length === 0 ? (
                 <span style={{ color: 'var(--text2)', fontSize: 12 }}>No fields defined</span>
               ) : (
@@ -232,6 +291,90 @@ export default function SchemasView() {
             <div className="out-label">Raw</div>
             <pre className="out">{JSON.stringify(getResult, null, 2)}</pre>
           </>
+        )}
+      </div>
+
+      {/* Verify onchain schema */}
+      <div className="card">
+        <div className="card-title">
+          Verify Schema
+          <span className="badge badge-dim">onchain</span>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>
+          Cross-reference the SQLite commitment with the onchain registry to confirm consistency.
+          Only works for schemas created with <code style={{ color: 'var(--code)', background: 'var(--bg2)', padding: '1px 5px', borderRadius: 3 }}>onchain=true</code>.
+        </p>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="fl">Schema name</label>
+            <input
+              className="inp"
+              placeholder="users"
+              value={verifyName}
+              onChange={e => setVerifyName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleVerify()}
+            />
+          </div>
+          <button
+            className="btn btn-p"
+            onClick={() => handleVerify()}
+            disabled={verifying || !verifyName.trim()}
+          >
+            {verifying ? <><div className="spin" /> Verifying…</> : 'Verify'}
+          </button>
+        </div>
+
+        {/* Quick-load onchain schemas */}
+        {savedSchemas.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            {savedSchemas.map(name => (
+              <button
+                key={name}
+                className="btn btn-s btn-xs"
+                onClick={() => { setVerifyName(name); handleVerify(name); }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {verifyError && <div className="err-box" style={{ marginTop: 10 }}>{verifyError}</div>}
+
+        {verifyResult && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              {verifyResult.verified
+                ? <span className="badge badge-green">verified ✓</span>
+                : <span className="badge badge-red">mismatch ✗</span>
+              }
+            </div>
+            <div className="kv">
+              <span className="kv-k">commitment</span>
+              <span className="kv-v" style={{ fontSize: 10.5, wordBreak: 'break-all' }}>{verifyResult.commitment}</span>
+            </div>
+            <div className="kv">
+              <span className="kv-k">onchain key</span>
+              <span className="kv-v" style={{ fontSize: 10.5, wordBreak: 'break-all' }}>{verifyResult.onchainKey}</span>
+            </div>
+            {verifyResult.txHash && (
+              <div className="kv">
+                <span className="kv-k">tx hash</span>
+                <span className="kv-v" style={{ fontSize: 10.5, wordBreak: 'break-all' }}>{verifyResult.txHash}</span>
+              </div>
+            )}
+            {verifyResult.onchainWalletAddress && (
+              <div className="kv">
+                <span className="kv-k">wallet</span>
+                <span className="kv-v" style={{ fontSize: 10.5 }}>{verifyResult.onchainWalletAddress}</span>
+              </div>
+            )}
+            {!verifyResult.verified && (
+              <div className="warn-box" style={{ marginTop: 10 }}>
+                Commitment mismatch — the schema may have been tampered with or the registry entry is stale.
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

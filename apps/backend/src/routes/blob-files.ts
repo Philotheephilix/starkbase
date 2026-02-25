@@ -14,8 +14,9 @@ export async function blobFileRoutes(
   const svc = opts.blobFileSvc;
 
   // POST /blobs — upload a file (base64 JSON body)
+  // onchain=true anchors the commitment in the registry contract (immutable, cannot delete)
   app.post<{
-    Body: { data: string; filename?: string; mimeType?: string };
+    Body: { data: string; filename?: string; mimeType?: string; onchain?: boolean };
   }>('/', async (req, reply) => {
     try {
       const { walletAddress, platformId } = getUser(req);
@@ -25,7 +26,8 @@ export async function blobFileRoutes(
         platformId,
         walletAddress,
         req.body.filename,
-        req.body.mimeType
+        req.body.mimeType,
+        req.body.onchain
       );
       return reply.code(201).send(record);
     } catch (err: any) {
@@ -68,12 +70,22 @@ export async function blobFileRoutes(
     }
   });
 
-  // DELETE /blobs/:id — soft-delete
+  // DELETE /blobs/:id — soft-delete (blocked for onchain blobs)
   app.delete<{ Params: { id: string } }>('/:id', async (req, reply) => {
     try {
       const { platformId } = getUser(req);
       svc.delete(req.params.id, platformId);
       return reply.code(204).send();
+    } catch (err: any) {
+      return reply.code(err.statusCode ?? 500).send({ error: err.message });
+    }
+  });
+
+  // GET /blobs/:id/verify — cross-reference SQLite commitment vs onchain registry
+  app.get<{ Params: { id: string } }>('/:id/verify', async (req, reply) => {
+    try {
+      const { platformId } = getUser(req);
+      return await svc.verify(req.params.id, platformId);
     } catch (err: any) {
       return reply.code(err.statusCode ?? 500).send({ error: err.message });
     }

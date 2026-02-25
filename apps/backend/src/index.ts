@@ -35,8 +35,8 @@ export function buildApp(db?: Database.Database) {
   const registrySvc = new BlobRegistryService(resolvedDb, walletSvc);
   const nftSvc = new NFTService(resolvedDb, walletSvc);
   const tokenSvc = new TokenService(resolvedDb, walletSvc);
-  const schemaSvc = new SchemaService(resolvedDb);
-  const blobFileSvc = new BlobFileService(resolvedDb);
+  const schemaSvc = new SchemaService(resolvedDb, registrySvc);
+  const blobFileSvc = new BlobFileService(resolvedDb, registrySvc);
 
   // maxParamLength: EigenDA cert hex strings are several hundred chars; default 100 is too short
   const app = Fastify({ logger: false, maxParamLength: 4096 });

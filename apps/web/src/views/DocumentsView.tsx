@@ -128,6 +128,7 @@ export default function DocumentsView() {
   const needsData   = ['upload', 'update'].includes(op);
   const needsFilter = op === 'findMany';
   const currentOp  = OPS.find(o => o.id === op)!;
+  const isOnchainBlocked = schemaInfo?.onchain && (op === 'update' || op === 'delete');
 
   return (
     <div className="view">
@@ -179,6 +180,7 @@ export default function DocumentsView() {
         {schemaInfo && (
           <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span className="badge badge-green">{schemaInfo.name}</span>
+            {schemaInfo.onchain && <span className="badge badge-blue">onchain</span>}
             {Object.entries(schemaInfo.fields).map(([fname, fdef]) => (
               <span key={fname} style={{ fontSize: 11, color: 'var(--text2)' }}>
                 <span style={{ color: 'var(--code)' }}>{fname}</span>
@@ -262,16 +264,23 @@ export default function DocumentsView() {
               </p>
             )}
 
-            <button
-              className="btn btn-p"
-              onClick={execute}
-              disabled={loading || (needsKey && !key.trim())}
-            >
-              {loading
-                ? <><div className="spin" /> Running…</>
-                : `Execute ${currentOp.label}`
-              }
-            </button>
+            {isOnchainBlocked ? (
+              <div className="warn-box">
+                <strong>Onchain schema</strong> — documents in this schema are immutable.
+                Update and delete operations are disabled.
+              </div>
+            ) : (
+              <button
+                className="btn btn-p"
+                onClick={execute}
+                disabled={loading || (needsKey && !key.trim())}
+              >
+                {loading
+                  ? <><div className="spin" /> Running…</>
+                  : `Execute ${currentOp.label}`
+                }
+              </button>
+            )}
           </div>
 
           {/* Result */}
