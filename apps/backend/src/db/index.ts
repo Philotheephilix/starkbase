@@ -118,6 +118,28 @@ const SCHEMA = `
     created_at       INTEGER DEFAULT (unixepoch())
   );
 
+  CREATE TABLE IF NOT EXISTS events (
+    id              TEXT PRIMARY KEY,
+    platform_id     TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    description     TEXT NOT NULL,
+    image_url       TEXT NOT NULL,
+    max_supply      INTEGER NOT NULL DEFAULT 0,
+    contract_address TEXT UNIQUE,
+    tx_hash         TEXT,
+    creator_wallet  TEXT NOT NULL,
+    deployed_at     INTEGER DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS event_mints (
+    id         TEXT PRIMARY KEY,
+    event_id   TEXT NOT NULL REFERENCES events(id),
+    token_id   TEXT NOT NULL,
+    recipient  TEXT NOT NULL,
+    tx_hash    TEXT,
+    minted_at  INTEGER DEFAULT (unixepoch())
+  );
+
 `;
 
 // Migrations for columns added after initial deployment (SQLite ignores duplicate column errors).
@@ -127,6 +149,8 @@ const MIGRATIONS = [
   `ALTER TABLE schemas ADD COLUMN onchain_commitment TEXT`,
   `ALTER TABLE blob_files ADD COLUMN onchain INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE blob_files ADD COLUMN onchain_tx_hash TEXT`,
+  `CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, platform_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL, image_url TEXT NOT NULL, max_supply INTEGER NOT NULL DEFAULT 0, contract_address TEXT UNIQUE, tx_hash TEXT, creator_wallet TEXT NOT NULL, deployed_at INTEGER DEFAULT (unixepoch()))`,
+  `CREATE TABLE IF NOT EXISTS event_mints (id TEXT PRIMARY KEY, event_id TEXT NOT NULL REFERENCES events(id), token_id TEXT NOT NULL, recipient TEXT NOT NULL, tx_hash TEXT, minted_at INTEGER DEFAULT (unixepoch()))`,
 ];
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {

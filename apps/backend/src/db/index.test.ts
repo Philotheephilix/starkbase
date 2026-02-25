@@ -83,3 +83,27 @@ describe('schema tables', () => {
     db.close();
   });
 });
+
+it('creates events table', () => {
+  const db = createDb(':memory:');
+  db.prepare(`INSERT INTO events (id, platform_id, name, description, image_url, creator_wallet)
+    VALUES ('e1', 'p1', 'My Event', 'Desc', 'https://img.com/1.png', '0xwallet')
+  `).run();
+  const row = db.prepare('SELECT * FROM events WHERE id = ?').get('e1') as any;
+  expect(row.name).toBe('My Event');
+  expect(row.max_supply).toBe(0);
+  db.close();
+});
+
+it('creates event_mints table', () => {
+  const db = createDb(':memory:');
+  db.prepare(`INSERT INTO events (id, platform_id, name, description, image_url, creator_wallet)
+    VALUES ('e1', 'p1', 'Ev', 'D', 'https://i.com', '0xw')
+  `).run();
+  db.prepare(`INSERT INTO event_mints (id, event_id, token_id, recipient, tx_hash)
+    VALUES ('m1', 'e1', '1', '0xrecip', '0xtx')
+  `).run();
+  const row = db.prepare('SELECT * FROM event_mints WHERE id = ?').get('m1') as any;
+  expect(row.recipient).toBe('0xrecip');
+  db.close();
+});

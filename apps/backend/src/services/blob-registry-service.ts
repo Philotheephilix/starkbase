@@ -101,7 +101,8 @@ export class BlobRegistryService {
     return transaction_hash;
   }
 
-  /** Call create on the deployed contract and persist the entry to SQLite. */
+  /** Call create on the deployed contract and persist the entry to SQLite.
+   *  Auto-registers the platform if it has not been registered yet. */
   async create(
     contractAddress: string,
     platformId: string,
@@ -113,6 +114,12 @@ export class BlobRegistryService {
 
     const provider = this.walletSvc.getProvider();
     const deployer = this.walletSvc.getDeployer(provider);
+
+    // Auto-register the platform if it is not yet registered on-chain
+    const isRegistered = await this.isPlatformRegistered(contractAddress, platformId);
+    if (!isRegistered) {
+      await this.registerPlatform(contractAddress, platformId);
+    }
 
     const { transaction_hash } = await deployer.execute({
       contractAddress,
