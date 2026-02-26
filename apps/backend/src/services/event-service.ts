@@ -193,13 +193,15 @@ export class EventService {
     });
     await provider.waitForTransaction(transaction_hash);
 
-    // Read the current token ID from the counter (equals last minted token ID)
-    const counterResult = await provider.callContract({
+    // Read the last minted token ID via total_supply (ERC721Enumerable is public;
+    // CounterImpl is intentionally private to hide increment/decrement).
+    // total_supply returns u256 as [low, high] felts — token IDs fit in low.
+    const supplyResult = await provider.callContract({
       contractAddress: event.contractAddress,
-      entrypoint: 'current',
+      entrypoint: 'total_supply',
       calldata: [],
     });
-    const tokenId = BigInt(counterResult[0]).toString();
+    const tokenId = BigInt(supplyResult[0]).toString();
 
     const id = crypto.randomUUID();
     this.db.prepare(
