@@ -5,8 +5,9 @@ import AuthView from './views/AuthView';
 import SchemasView from './views/SchemasView';
 import DocumentsView from './views/DocumentsView';
 import BlobsView from './views/BlobsView';
+import EventsView from './views/EventsView';
 
-type Tab = 'platform' | 'auth' | 'schemas' | 'docs' | 'blobs';
+type Tab = 'platform' | 'auth' | 'schemas' | 'docs' | 'blobs' | 'events';
 
 const NAV: { id: Tab; label: string; icon: string }[] = [
   { id: 'platform', label: 'Platform',  icon: '⬡' },
@@ -14,6 +15,7 @@ const NAV: { id: Tab; label: string; icon: string }[] = [
   { id: 'schemas',  label: 'Schemas',   icon: '◈' },
   { id: 'docs',     label: 'Documents', icon: '▦' },
   { id: 'blobs',    label: 'Blobs',     icon: '⊞' },
+  { id: 'events',   label: 'Events',    icon: '◎' },
 ];
 
 export default function App() {
@@ -66,6 +68,7 @@ export default function App() {
         {tab === 'schemas'  && <SchemasView />}
         {tab === 'docs'     && <DocumentsView />}
         {tab === 'blobs'    && <BlobsView />}
+        {tab === 'events'   && <EventsView />}
       </main>
     </div>
   );

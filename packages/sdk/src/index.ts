@@ -13,6 +13,7 @@ export { useNFTs } from './hooks/useNFTs';
 export { useTokens } from './hooks/useTokens';
 export { useSchemas } from './hooks/useSchemas';
 export { useBlobs } from './hooks/useBlobs';
+export { useEvents } from './hooks/useEvents';
 
 // Types (re-exported for convenience)
 export type {
@@ -45,4 +46,6 @@ export type {
   DocumentVersion,
   BlobFile,
   BlobVerifyResult,
+  EventRecord,
+  EventMint,
 } from '@starkbase/types';

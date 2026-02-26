@@ -5,7 +5,9 @@ import jwt from 'jsonwebtoken';
 const PUBLIC_PATHS = new Set(['/health', '/auth/register', '/auth/login', '/platforms']);
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
-  if (PUBLIC_PATHS.has(request.url.split('?')[0])) return;
+  const urlPath = request.url.split('?')[0];
+  const isPublicTokenRoute = /^\/events\/[^/]+\/tokens\/[^/]+$/.test(urlPath);
+  if (PUBLIC_PATHS.has(urlPath) || isPublicTokenRoute) return;
 
   const authHeader = request.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {

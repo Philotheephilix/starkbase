@@ -23,6 +23,8 @@ import { SchemaService } from './services/schema-service';
 import { schemaRoutes } from './routes/schemas';
 import { BlobFileService } from './services/blob-file-service';
 import { blobFileRoutes } from './routes/blob-files';
+import { EventService } from './services/event-service';
+import { eventRoutes } from './routes/events';
 
 const MASTER_SECRET = process.env.STARKBASE_MASTER_SECRET ?? 'dev-master-secret';
 
@@ -37,6 +39,7 @@ export function buildApp(db?: Database.Database) {
   const tokenSvc = new TokenService(resolvedDb, walletSvc);
   const schemaSvc = new SchemaService(resolvedDb, registrySvc);
   const blobFileSvc = new BlobFileService(resolvedDb, registrySvc);
+  const eventSvc = new EventService(resolvedDb, walletSvc);
 
   // maxParamLength: EigenDA cert hex strings are several hundred chars; default 100 is too short
   const app = Fastify({ logger: false, maxParamLength: 4096 });
@@ -65,6 +68,7 @@ export function buildApp(db?: Database.Database) {
   app.register(tokenRoutes, { prefix: '/tokens', tokenSvc } as any);
   app.register(schemaRoutes, { prefix: '/schemas', schemaSvc } as any);
   app.register(blobFileRoutes, { prefix: '/blobs', blobFileSvc } as any);
+  app.register(eventRoutes, { prefix: '/events', eventSvc } as any);
 
   return app;
 }

@@ -257,3 +257,28 @@ export interface DocumentVersion {
   createdBy: string;
   createdAt: string;
 }
+
+// ─── Events ───────────────────────────────────────────────────────────────────
+
+export interface EventRecord {
+  id: string;
+  platformId: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  maxSupply: number;       // 0 = unlimited
+  contractAddress: string;
+  txHash: string;
+  creatorWallet: string;
+  deployedAt: string;
+  mintCount?: number;
+}
+
+export interface EventMint {
+  id: string;
+  eventId: string;
+  tokenId: string;
+  recipient: string;
+  txHash: string;
+  mintedAt: string;
+}

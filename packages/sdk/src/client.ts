@@ -9,6 +9,7 @@ import { TokensModule } from './modules/tokens';
 import { PlatformsModule } from './modules/platforms';
 import { SchemasModule, SchemaCollection } from './modules/schemas';
 import { BlobsModule } from './modules/blobs';
+import { EventsModule } from './modules/events';
 
 export class StarkbaseClient {
   private http: AxiosInstance;
@@ -44,6 +45,7 @@ export class StarkbaseClient {
   get platforms() { return new PlatformsModule(this.http); }
   get schemas()   { return new SchemasModule(this.http); }
   get blobs()     { return new BlobsModule(this.http); }
+  get events()    { return new EventsModule(this.http); }
 
   schema(name: string): SchemaCollection {
     return new SchemaCollection(this.http, name);
