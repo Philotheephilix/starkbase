@@ -1,35 +1,43 @@
 import type { AxiosInstance } from 'axios';
-import type { CreatedToken, MintRewardResponse } from '@starkbase/types';
+import type { CreatedToken, MintTokenResponse, TokenMintEvent } from '@starkbase/types';
 
 export class TokensModule {
   constructor(private http: AxiosInstance) {}
 
-  async create(
+  async deploy(
     name: string,
     symbol: string,
     initialSupply: string,
-    platformId: string
+    recipientAddress: string
   ): Promise<CreatedToken> {
-    const { data } = await this.http.post('/tokens/create', {
+    const { data } = await this.http.post('/tokens/deploy', {
       name,
       symbol,
       initialSupply,
-      platformId,
+      recipientAddress,
     });
     return data;
   }
 
-  async mintReward(
+  async mint(
     contractAddress: string,
     recipient: string,
-    amount: string,
-    reason: string
-  ): Promise<MintRewardResponse> {
+    amount: string
+  ): Promise<MintTokenResponse> {
     const { data } = await this.http.post(`/tokens/${contractAddress}/mint`, {
       recipient,
       amount,
-      reason,
     });
+    return data;
+  }
+
+  async list(): Promise<CreatedToken[]> {
+    const { data } = await this.http.get('/tokens');
+    return data;
+  }
+
+  async history(contractAddress: string): Promise<TokenMintEvent[]> {
+    const { data } = await this.http.get(`/tokens/${contractAddress}/history`);
     return data;
   }
 }

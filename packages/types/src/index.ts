@@ -153,14 +153,21 @@ export interface CreatedToken {
   symbol: string;
   initialSupply: string;
   platformId: string;
+  creatorWallet: string;
   transactionHash: string;
 }
 
-export interface MintRewardResponse {
-  transactionHash: string;
+export interface MintTokenResponse {
+  txHash: string;
   recipient: string;
   amount: string;
-  reason: string;
+}
+
+export interface TokenMintEvent {
+  txHash: string;
+  recipient: string;
+  amount: string;
+  blockNumber: number;
 }
 
 // ─── Query ────────────────────────────────────────────────────────────────────

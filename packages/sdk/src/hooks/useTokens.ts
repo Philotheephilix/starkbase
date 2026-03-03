@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useStarkbaseContext } from '../context/StarkbaseContext';
-import type { CreatedToken, MintRewardResponse } from '@starkbase/types';
+import type { CreatedToken, MintTokenResponse, TokenMintEvent } from '@starkbase/types';
 
 export function useTokens() {
   const client = useStarkbaseContext();
@@ -18,9 +18,22 @@ export function useTokens() {
   return {
     isLoading,
     error,
-    create: (name: string, symbol: string, initialSupply: string, platformId: string): Promise<CreatedToken> =>
-      withLoading(() => client.tokens.create(name, symbol, initialSupply, platformId)),
-    mintReward: (address: string, recipient: string, amount: string, reason: string): Promise<MintRewardResponse> =>
-      withLoading(() => client.tokens.mintReward(address, recipient, amount, reason)),
+    deploy: (
+      name: string,
+      symbol: string,
+      initialSupply: string,
+      recipientAddress: string
+    ): Promise<CreatedToken> =>
+      withLoading(() => client.tokens.deploy(name, symbol, initialSupply, recipientAddress)),
+    mint: (
+      contractAddress: string,
+      recipient: string,
+      amount: string
+    ): Promise<MintTokenResponse> =>
+      withLoading(() => client.tokens.mint(contractAddress, recipient, amount)),
+    list: (): Promise<CreatedToken[]> =>
+      withLoading(() => client.tokens.list()),
+    history: (contractAddress: string): Promise<TokenMintEvent[]> =>
+      withLoading(() => client.tokens.history(contractAddress)),
   };
 }

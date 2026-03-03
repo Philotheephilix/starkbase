@@ -74,6 +74,7 @@ const SCHEMA = `
     recipient_address TEXT NOT NULL,
     tx_hash TEXT NOT NULL,
     platform_id TEXT NOT NULL,
+    creator_wallet TEXT NOT NULL DEFAULT '',
     deployed_at INTEGER DEFAULT (unixepoch())
   );
   CREATE TABLE IF NOT EXISTS schemas (
@@ -151,6 +152,7 @@ const MIGRATIONS = [
   `ALTER TABLE blob_files ADD COLUMN onchain_tx_hash TEXT`,
   `CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, platform_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL, image_url TEXT NOT NULL, max_supply INTEGER NOT NULL DEFAULT 0, contract_address TEXT UNIQUE, tx_hash TEXT, creator_wallet TEXT NOT NULL, deployed_at INTEGER DEFAULT (unixepoch()))`,
   `CREATE TABLE IF NOT EXISTS event_mints (id TEXT PRIMARY KEY, event_id TEXT NOT NULL REFERENCES events(id), token_id TEXT NOT NULL, recipient TEXT NOT NULL, tx_hash TEXT, minted_at INTEGER DEFAULT (unixepoch()))`,
+  `ALTER TABLE deployed_tokens ADD COLUMN creator_wallet TEXT NOT NULL DEFAULT ''`,
 ];
 
 export function createDb(dbPath: string = DB_PATH): Database.Database {
