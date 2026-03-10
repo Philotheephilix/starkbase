@@ -1,12 +1,32 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useStarkbaseContext } from '../context/StarkbaseContext';
 import type { AuthUser, AuthResult } from '@starkbase/types';
+
+const TOKEN_KEY = 'sb_session_token';
 
 export function useAuth() {
   const client = useStarkbaseContext();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      client.setSessionToken(token);
+      client.auth.me()
+        .then((u) => setUser(u))
+        .catch(() => {
+          localStorage.removeItem(TOKEN_KEY);
+          client.clearSessionToken();
+        })
+        .finally(() => setInitialized(true));
+    } else {
+      setInitialized(true);
+    }
+  }, [client]);
 
   const register = useCallback(
     async (params: { username: string; password: string }): Promise<AuthResult> => {
@@ -14,6 +34,7 @@ export function useAuth() {
       setError(null);
       try {
         const result = await client.auth.register(params);
+        localStorage.setItem(TOKEN_KEY, result.sessionToken);
         client.setSessionToken(result.sessionToken);
         setUser({
           userId: '',
@@ -38,6 +59,7 @@ export function useAuth() {
       setError(null);
       try {
         const result = await client.auth.login(params);
+        localStorage.setItem(TOKEN_KEY, result.sessionToken);
         client.setSessionToken(result.sessionToken);
         setUser({
           userId: '',
@@ -60,6 +82,7 @@ export function useAuth() {
     try {
       await client.auth.logout();
     } finally {
+      localStorage.removeItem(TOKEN_KEY);
       client.clearSessionToken();
       setUser(null);
     }
@@ -68,7 +91,7 @@ export function useAuth() {
   return {
     user,
     isAuthenticated: user !== null,
-    isLoading,
+    isLoading: isLoading || !initialized,
     error,
     register,
     login,

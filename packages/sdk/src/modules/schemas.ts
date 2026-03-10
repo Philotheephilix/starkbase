@@ -65,6 +65,11 @@ export class SchemaCollection {
 export class SchemasModule {
   constructor(private http: AxiosInstance) {}
 
+  async list(): Promise<SchemaRecord[]> {
+    const { data } = await this.http.get('/schemas');
+    return data;
+  }
+
   async create(
     name: string,
     def: SchemaCollectionDef,

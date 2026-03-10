@@ -5,6 +5,11 @@ import type { SchemaCollectionDef, SchemaRecord, SchemaVerifyResult } from '@sta
 export function useSchemas() {
   const client = useStarkbaseContext();
 
+  const listSchemas = useCallback(
+    (): Promise<SchemaRecord[]> => client.schemas.list(),
+    [client]
+  );
+
   const createSchema = useCallback(
     (name: string, def: SchemaCollectionDef, opts?: { onchain?: boolean }): Promise<SchemaRecord> =>
       client.schemas.create(name, def, opts),
@@ -26,5 +31,5 @@ export function useSchemas() {
     [client]
   );
 
-  return { createSchema, getSchema, verifySchema, collection };
+  return { listSchemas, createSchema, getSchema, verifySchema, collection };
 }

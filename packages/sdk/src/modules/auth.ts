@@ -23,6 +23,11 @@ export class AuthModule {
     return data;
   }
 
+  async listUsers(platformId: string): Promise<Array<{ userId: string; username: string; walletAddress: string; deployed: boolean; createdAt: number }>> {
+    const { data } = await this.http.get(`/auth/users/${platformId}`);
+    return data;
+  }
+
   async me(): Promise<AuthUser> {
     const { data } = await this.http.get('/auth/me');
     return data;

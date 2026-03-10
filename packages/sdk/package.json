@@ -1,7 +1,6 @@
 {
   "name": "@starkbase/sdk",
   "version": "0.1.0",
-  "private": true,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -12,6 +11,7 @@
       "require": "./dist/index.js"
     }
   },
+  "files": ["dist"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -23,7 +23,7 @@
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@starkbase/types": "workspace:*",
+    "@starkbase/types": "^0.1.0",
     "axios": "^1.7.2",
     "starknet": "^6.11.0"
   },

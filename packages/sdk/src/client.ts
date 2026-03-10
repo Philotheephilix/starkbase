@@ -16,7 +16,7 @@ export class StarkbaseClient {
 
   constructor(private config: StarkbaseConfig = {}) {
     this.http = axios.create({
-      baseURL: config.apiUrl ?? 'https://api.starkbase.dev',
+      baseURL: config.apiUrl ?? 'https://starknet.philotheephilix.in',
       headers: {
         'Content-Type': 'application/json',
         ...(config.platformId ? { 'X-Platform-ID': config.platformId } : {}),
