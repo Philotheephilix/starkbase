@@ -21,7 +21,13 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "baseUrl": "."
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/design-app", "src/design-components/theme-provider.tsx", "src/design-components/ui", "src/hooks"]
 }
