@@ -53,9 +53,18 @@ export function buildApp(db?: Database.Database) {
 
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
-  // Admin: create a platform (no auth — internal/dev use)
-  app.post<{ Body: { name: string } }>('/platforms', async (req) => {
-    return platformSvc.createPlatform(req.body.name);
+  // Platform management (no auth — internal/dev use)
+  app.get('/platforms', async () => {
+    return platformSvc.listAll();
+  });
+
+  app.get<{ Params: { wallet: string } }>('/platforms/wallet/:wallet', async (req) => {
+    return platformSvc.listByWallet(req.params.wallet);
+  });
+
+  app.post<{ Body: { name: string; creatorWallet?: string } }>('/platforms', async (req) => {
+    console.log('[POST /platforms] body:', JSON.stringify(req.body));
+    return platformSvc.createPlatform(req.body.name, req.body.creatorWallet ?? '');
   });
 
   app.register(authRoutes, { prefix: '/auth', authSvc } as any);

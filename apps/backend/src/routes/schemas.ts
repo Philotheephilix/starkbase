@@ -13,6 +13,16 @@ export async function schemaRoutes(
 ) {
   const svc = opts.schemaSvc;
 
+  // GET /schemas — list all schemas for this platform
+  app.get('/', async (req, reply) => {
+    const { platformId } = getUser(req);
+    try {
+      return svc.listSchemas(platformId);
+    } catch (err: any) {
+      return reply.code(err.statusCode ?? 500).send({ error: err.message });
+    }
+  });
+
   // POST /schemas — create schema (onchain=true anchors commitment in registry contract)
   app.post<{ Body: { name: string; fields: Record<string, SchemaFieldDef>; onchain?: boolean } }>(
     '/',

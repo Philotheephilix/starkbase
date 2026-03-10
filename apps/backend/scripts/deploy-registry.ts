@@ -21,18 +21,15 @@ if (!DEPLOYER_ADDRESS || !DEPLOYER_PRIVATE_KEY) {
   process.exit(1);
 }
 
-const ARTIFACT_PATH = path.resolve(__dirname, '../../../contracts/artifacts/StarkbaseRegistry.json');
-const CASM_PATH = path.resolve(
-  __dirname,
-  '../../../contracts/target/dev/starkbase_registry_StarkbaseRegistry.compiled_contract_class.json'
-);
+const ARTIFACT_PATH = path.resolve(__dirname, '../../../contracts/target/dev/starkbase_registry_StarkbaseRegistry.contract_class.json');
+const CASM_PATH = path.resolve(__dirname, '../../../contracts/target/dev/starkbase_registry_StarkbaseRegistry.compiled_contract_class.json');
 
 async function main() {
   console.log('RPC:', RPC_URL);
   console.log('Deployer:', DEPLOYER_ADDRESS);
 
   const provider = new RpcProvider({ nodeUrl: RPC_URL });
-  const deployer = new Account({ provider, address: DEPLOYER_ADDRESS!, signer: DEPLOYER_PRIVATE_KEY! } as any);
+  const deployer = new Account({ provider, address: DEPLOYER_ADDRESS!, signer: DEPLOYER_PRIVATE_KEY! });
 
   const sierra = JSON.parse(readFileSync(ARTIFACT_PATH, 'utf8'));
   const casm = JSON.parse(readFileSync(CASM_PATH, 'utf8'));

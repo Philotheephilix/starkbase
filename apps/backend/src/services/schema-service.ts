@@ -140,6 +140,13 @@ export class SchemaService {
     );
   }
 
+  listSchemas(platformId: string): SchemaRecord[] {
+    const rows = this.db
+      .prepare('SELECT * FROM schemas WHERE platform_id = ? ORDER BY created_at DESC')
+      .all(platformId) as SchemaRow[];
+    return rows.map(row => this._rowToRecord(row));
+  }
+
   getSchema(platformId: string, name: string): SchemaRecord {
     const row = this.db
       .prepare('SELECT * FROM schemas WHERE platform_id = ? AND name = ?')
