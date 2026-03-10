@@ -1,6 +1,13 @@
-import { useState, useCallback } from 'react';
-import { useEvents } from '@starkbase/sdk';
+import { useState, useCallback, useEffect } from 'react';
+import { useEvents, useStarkbase } from '@starkbase/sdk';
 import type { EventRecord, EventMint } from '@starkbase/sdk';
+
+interface PlatformUser {
+  userId: string;
+  username: string;
+  walletAddress: string;
+  deployed: boolean;
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString();
@@ -8,6 +15,24 @@ function formatDate(iso: string): string {
 
 export default function EventsView() {
   const { createEvent, listEvents, mint, listMints } = useEvents();
+  const client = useStarkbase();
+
+  // Platform users for recipient picker
+  const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [useManualAddress, setUseManualAddress] = useState(false);
+
+  const platformId = localStorage.getItem('sb_platform_id');
+
+  useEffect(() => {
+    if (!platformId) return;
+    setUsersLoading(true);
+    client.auth.listUsers(platformId)
+      .then(users => setPlatformUsers(users.filter(u => u.deployed && u.walletAddress)))
+      .catch(() => setPlatformUsers([]))
+      .finally(() => setUsersLoading(false));
+  }, [client, platformId]);
 
   // Create form
   const [name, setName] = useState('');
@@ -244,9 +269,28 @@ export default function EventsView() {
             <span className="badge badge-blue" style={{ fontSize: 11 }}>{selectedEvent.name}</span>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="fl">Recipient wallet address</label>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <label className="fl" style={{ margin: 0 }}>Recipient</label>
+              <button
+                className={`btn btn-sm ${useManualAddress ? 'btn-s' : 'btn-p'}`}
+                style={{ fontSize: 10, padding: '3px 10px' }}
+                onClick={() => { setUseManualAddress(false); setRecipient(''); setSelectedUserId(null); }}
+                type="button"
+              >
+                Select user
+              </button>
+              <button
+                className={`btn btn-sm ${useManualAddress ? 'btn-p' : 'btn-s'}`}
+                style={{ fontSize: 10, padding: '3px 10px' }}
+                onClick={() => { setUseManualAddress(true); setRecipient(''); setSelectedUserId(null); }}
+                type="button"
+              >
+                Manual address
+              </button>
+            </div>
+
+            {useManualAddress ? (
               <input
                 className="inp"
                 placeholder="0x..."
@@ -254,15 +298,85 @@ export default function EventsView() {
                 onChange={e => setRecipient(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleMint()}
               />
-            </div>
-            <button
-              className="btn btn-p"
-              onClick={handleMint}
-              disabled={minting || !recipient.trim()}
-            >
-              {minting ? <><div className="spin" /> Minting…</> : 'Mint NFT'}
-            </button>
+            ) : (
+              <div style={{
+                maxHeight: 200,
+                overflowY: 'auto',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--r)',
+                background: 'var(--bg2)',
+              }}>
+                {usersLoading ? (
+                  <div style={{ padding: '16px', textAlign: 'center' }}>
+                    <div className="loading" style={{ justifyContent: 'center' }}><div className="spin" /> Loading users…</div>
+                  </div>
+                ) : platformUsers.length === 0 ? (
+                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text2)', fontSize: 12 }}>
+                    No deployed users found.{' '}
+                    <button
+                      className="btn btn-s btn-sm"
+                      style={{ fontSize: 10 }}
+                      onClick={() => setUseManualAddress(true)}
+                      type="button"
+                    >
+                      Enter manually
+                    </button>
+                  </div>
+                ) : (
+                  platformUsers.map(u => (
+                    <div
+                      key={u.userId}
+                      onClick={() => {
+                        setSelectedUserId(u.userId);
+                        setRecipient(u.walletAddress);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 14px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid var(--border)',
+                        background: selectedUserId === u.userId ? 'rgba(255,77,0,0.08)' : 'transparent',
+                        borderLeft: selectedUserId === u.userId ? '3px solid var(--orange)' : '3px solid transparent',
+                        transition: 'all 0.1s',
+                      }}
+                    >
+                      <div style={{
+                        width: 30, height: 30,
+                        background: selectedUserId === u.userId ? 'var(--orange)' : 'var(--bg3)',
+                        borderRadius: 8,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700,
+                        color: selectedUserId === u.userId ? 'black' : 'var(--text2)',
+                        textTransform: 'uppercase',
+                        flexShrink: 0,
+                      }}>
+                        {u.username.charAt(0)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--textb)' }}>{u.username}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text2)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {u.walletAddress}
+                        </div>
+                      </div>
+                      {selectedUserId === u.userId && (
+                        <span className="badge badge-green" style={{ flexShrink: 0 }}>selected</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
+
+          <button
+            className="btn btn-p"
+            onClick={handleMint}
+            disabled={minting || !recipient.trim()}
+          >
+            {minting ? <><div className="spin" /> Minting…</> : 'Mint NFT'}
+          </button>
 
           {mintError && <div className="err-box">{mintError}</div>}
 
