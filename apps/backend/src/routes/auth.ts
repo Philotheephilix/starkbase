@@ -29,6 +29,14 @@ export async function authRoutes(
     }
   );
 
+  app.get<{ Params: { platformId: string } }>('/users/:platformId', async (req, reply) => {
+    try {
+      return authSvc.listUsers(req.params.platformId);
+    } catch (err: any) {
+      return reply.code(err.statusCode ?? 500).send({ error: err.message });
+    }
+  });
+
   app.get('/me', async (req, reply) => {
     const user = (req as typeof req & { user: unknown }).user;
     if (!user) return reply.code(401).send({ error: 'Unauthorized' });

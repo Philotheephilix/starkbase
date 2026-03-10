@@ -107,6 +107,19 @@ export class AuthService {
     return { walletAddress, sessionToken, username: row.username, platformId: row.platform_id };
   }
 
+  listUsers(platformId: string): Array<{ userId: string; username: string; walletAddress: string; deployed: boolean; createdAt: number }> {
+    const rows = this.db
+      .prepare('SELECT id, username, wallet_address, deployed, created_at FROM platform_users WHERE platform_id = ? ORDER BY created_at DESC')
+      .all(platformId) as Array<{ id: string; username: string; wallet_address: string | null; deployed: number; created_at: number }>;
+    return rows.map(r => ({
+      userId: r.id,
+      username: r.username,
+      walletAddress: r.wallet_address ?? '',
+      deployed: r.deployed === 1,
+      createdAt: r.created_at,
+    }));
+  }
+
   verifySession(sessionToken: string): AuthUser {
     const payload = jwt.verify(sessionToken, JWT_SECRET) as {
       userId: string;

@@ -7,7 +7,9 @@ const PUBLIC_PATHS = new Set(['/health', '/auth/register', '/auth/login', '/plat
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
   const urlPath = request.url.split('?')[0];
   const isPublicTokenRoute = /^\/events\/[^/]+\/tokens\/[^/]+$/.test(urlPath);
-  if (PUBLIC_PATHS.has(urlPath) || isPublicTokenRoute) return;
+  const isUsersRoute = /^\/auth\/users\/[^/]+$/.test(urlPath);
+  const isPlatformWalletRoute = /^\/platforms\/wallet\/0x[0-9a-fA-F]+$/.test(urlPath);
+  if (PUBLIC_PATHS.has(urlPath) || isPublicTokenRoute || isUsersRoute || isPlatformWalletRoute) return;
 
   const authHeader = request.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
