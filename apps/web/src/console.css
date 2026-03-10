@@ -1,0 +1,523 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+.console {
+  --orange: #FF4D00;
+  --orange-dim: rgba(255, 77, 0, 0.08);
+  --orange-mid: rgba(255, 77, 0, 0.15);
+  --bg:     #0a0a0a;
+  --bg1:    #111111;
+  --bg2:    #1a1a1a;
+  --bg3:    #222222;
+  --border: #2a2a2a;
+  --border2:#333333;
+  --text:   #a0a0a0;
+  --text2:  #666666;
+  --textb:  #f0f0f0;
+  --code:   #FF4D00;
+  --warn:   #f0a050;
+  --err:    #ef4444;
+  --r: 16px;
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.console *, .console *::before, .console *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.console ::-webkit-scrollbar { width: 6px; height: 6px; }
+.console ::-webkit-scrollbar-track { background: transparent; }
+.console ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── Layout ─────────────────────────────────────────── */
+.console .app { display: flex; height: 100vh; overflow: hidden; }
+
+/* ─── Sidebar ─────────────────────────────────────────── */
+.console .sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.console .sb-head {
+  padding: 24px 18px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.console .sb-logo { display: flex; align-items: center; gap: 10px; }
+.console .sb-mark {
+  width: 32px; height: 32px;
+  background: var(--orange);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Serif Display', serif;
+  font-weight: 700; font-size: 13px;
+  color: black;
+  letter-spacing: -0.5px;
+}
+.console .sb-name {
+  font-family: 'DM Serif Display', serif;
+  font-weight: 400; font-size: 18px;
+  color: var(--textb);
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+}
+
+.console nav { flex: 1; padding: 8px 10px; overflow-y: auto; }
+
+.console .nav-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 10px 14px;
+  background: transparent;
+  border: none; border-radius: 12px;
+  color: var(--text2); cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px; text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+}
+.console .nav-item:hover {
+  background: var(--bg2);
+  color: var(--text);
+}
+.console .nav-item.active {
+  background: var(--orange);
+  color: black;
+  font-weight: 600;
+}
+.console .nav-icon { font-size: 14px; flex-shrink: 0; }
+
+.console .sb-foot {
+  padding: 14px 14px;
+  border-top: 1px solid var(--border);
+}
+.console .status-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: var(--bg2);
+  border-radius: 10px; font-size: 11px; color: var(--text2);
+  margin-bottom: 6px; overflow: hidden;
+}
+.console .status-pill .label {
+  flex: 1; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.console .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.console .dot-on  { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+.console .dot-off { background: var(--text2); }
+
+/* ─── Main ─────────────────────────────────────────────── */
+.console .main {
+  flex: 1; overflow-y: auto;
+  background: var(--bg);
+  padding: 0;
+}
+.console .view { padding: 32px 40px; max-width: 900px; }
+
+.console .vh { margin-bottom: 28px; }
+.console .vh-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px;
+  color: var(--textb);
+  margin-bottom: 4px;
+  letter-spacing: -0.3px;
+}
+.console .vh-sub {
+  color: var(--text2);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Card ──────────────────────────────────────────────── */
+.console .card {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 22px; margin-bottom: 16px;
+}
+.console .card-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ─── Badges ────────────────────────────────────────────── */
+.console .badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px; border-radius: 6px; font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.console .badge-green { background: var(--orange-dim); color: var(--orange); }
+.console .badge-blue  { background: rgba(100,180,255,0.08); color: #7abfff; }
+.console .badge-amber { background: rgba(240,160,80,0.08); color: var(--warn); }
+.console .badge-red   { background: rgba(239,68,68,0.08); color: var(--err); }
+.console .badge-dim   { background: var(--bg2); color: var(--text2); }
+
+/* ─── Forms ─────────────────────────────────────────────── */
+.console .form-row   { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; }
+.console .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.console .fl {
+  font-size: 10px; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+.console .inp, .console .sel {
+  padding: 10px 14px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--textb); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  outline: none; width: 100%; transition: border-color 0.15s;
+}
+.console .inp:focus, .console .sel:focus { border-color: var(--orange); }
+.console .inp::placeholder { color: var(--text2); opacity: 0.5; }
+.console .sel { cursor: pointer; }
+
+.console .ta {
+  padding: 12px 14px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--orange); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  outline: none; resize: vertical; min-height: 90px; line-height: 1.5;
+  width: 100%; transition: border-color 0.15s;
+}
+.console .ta:focus { border-color: var(--orange); }
+.console .ta::placeholder { color: var(--text2); opacity: 0.4; }
+
+/* ─── Buttons ───────────────────────────────────────────── */
+.console .btn {
+  padding: 10px 18px; border: none; border-radius: 10px;
+  cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;
+  transition: all 0.15s; display: inline-flex; align-items: center; gap: 8px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.console .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.console .btn-p {
+  background: var(--orange); color: black;
+}
+.console .btn-p:hover:not(:disabled) {
+  background: #ff6a2a;
+  transform: scale(1.02);
+}
+
+.console .btn-s {
+  background: var(--bg2); color: var(--text);
+  border: 1px solid var(--border);
+}
+.console .btn-s:hover:not(:disabled) {
+  background: var(--bg3); border-color: var(--border2);
+  color: var(--textb);
+}
+
+.console .btn-d {
+  background: rgba(239,68,68,0.08); color: var(--err);
+  border: 1px solid rgba(239,68,68,0.2);
+}
+.console .btn-d:hover:not(:disabled) { background: rgba(239,68,68,0.15); }
+
+.console .btn-sm { padding: 7px 14px; font-size: 11px; }
+.console .btn-xs { padding: 5px 10px; font-size: 10px; }
+
+/* ─── Tabs ──────────────────────────────────────────────── */
+.console .tabs {
+  display: flex; gap: 4px;
+  background: var(--bg2);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 18px;
+}
+.console .t-btn {
+  padding: 8px 16px; background: transparent;
+  border: none; border-radius: 8px;
+  color: var(--text2); cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.15s;
+}
+.console .t-btn:hover { color: var(--text); }
+.console .t-btn.active {
+  background: var(--orange);
+  color: black;
+  font-weight: 600;
+}
+
+/* ─── Output ────────────────────────────────────────────── */
+.console .out {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.55;
+  overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+  color: var(--orange); max-height: 380px; overflow-y: auto;
+}
+.console .out.err { color: var(--err); border-color: rgba(239,68,68,0.25); }
+.console .out.ok  { border-color: rgba(255,77,0,0.25); }
+.console .out-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text2); margin-bottom: 6px; font-weight: 500;
+}
+
+/* ─── KV display ────────────────────────────────────────── */
+.console .kv { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+.console .kv-k {
+  color: var(--text2); min-width: 100px; flex-shrink: 0;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.console .kv-v {
+  color: var(--textb); word-break: break-all; font-size: 12px; flex: 1;
+}
+
+/* ─── Copy button ───────────────────────────────────────── */
+.console .copy-btn {
+  padding: 4px 10px; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text2); cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.console .copy-btn:hover { border-color: var(--orange); color: var(--orange); }
+.console .copy-btn.ok    { border-color: var(--orange); color: var(--orange); background: var(--orange-dim); }
+
+/* ─── Schema fields row ─────────────────────────────────── */
+.console .fields-row {
+  display: grid;
+  grid-template-columns: 1fr 130px 80px auto;
+  gap: 8px; align-items: center; margin-bottom: 8px;
+}
+
+/* ─── Schema field display ──────────────────────────────── */
+.console .schema-field {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; background: var(--bg2);
+  border-radius: 8px; margin-bottom: 6px;
+}
+.console .sf-name { color: var(--orange); flex: 1; font-size: 12px; }
+.console .sf-type { color: var(--text2); font-size: 11px; }
+
+/* ─── Document ops grid ─────────────────────────────────── */
+.console .ops { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 20px; }
+.console .op {
+  padding: 12px 4px; background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text2); cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: center;
+  transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.console .op:hover { background: var(--bg2); color: var(--text); border-color: var(--border2); }
+.console .op.active {
+  background: var(--orange); border-color: var(--orange); color: black;
+  font-weight: 600;
+}
+.console .op-v {
+  display: block; font-family: 'JetBrains Mono', monospace;
+  font-weight: 600; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;
+}
+.console .op-m { font-size: 9px; opacity: 0.5; }
+
+/* ─── History table ─────────────────────────────────────── */
+.console .tbl { width: 100%; border-collapse: collapse; }
+.console .tbl th {
+  padding: 8px 10px; text-align: left; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 10px; border-bottom: 1px solid var(--border); font-weight: 500;
+}
+.console .tbl td {
+  padding: 10px 10px; border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--text);
+}
+.console .tbl tr:last-child td { border-bottom: none; }
+.console .tbl tr:hover td { background: var(--bg2); }
+
+/* ─── Misc ──────────────────────────────────────────────── */
+.console .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+.console .info {
+  padding: 14px 18px; background: var(--orange-dim); border-radius: 10px;
+  border-left: 3px solid var(--orange); font-size: 12px; color: var(--text);
+  margin-bottom: 14px;
+}
+.console .warn-box {
+  padding: 14px 18px; background: rgba(240,160,80,0.06); border-radius: 10px;
+  border-left: 3px solid var(--warn); font-size: 12px; color: var(--text);
+  margin-bottom: 14px;
+}
+.console .err-box {
+  padding: 14px 18px; background: rgba(239,68,68,0.06); border-radius: 10px;
+  border-left: 3px solid var(--err); font-size: 12px; color: var(--err);
+  margin-bottom: 14px;
+}
+
+.console .loading {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text2); font-size: 12px; padding: 10px 0;
+}
+
+@keyframes console-spin { to { transform: rotate(360deg); } }
+.console .spin {
+  width: 14px; height: 14px;
+  border: 2px solid var(--border2); border-top-color: var(--orange);
+  border-radius: 50%; animation: console-spin 0.6s linear infinite; flex-shrink: 0;
+}
+
+/* ─── Platform Selector ────────────────────────────────── */
+.console .platform-selector {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 12px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--textb);
+  transition: all 0.15s;
+}
+.console .platform-selector:hover {
+  border-color: var(--border2);
+}
+.console .platform-selector-text {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.console .platform-selector-chevron {
+  font-size: 8px; color: var(--text2); flex-shrink: 0;
+}
+
+.console .platform-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  z-index: 100; max-height: 240px; overflow-y: auto;
+}
+.console .platform-dropdown-empty {
+  padding: 16px; text-align: center;
+  color: var(--text2); font-size: 11px;
+}
+.console .platform-dropdown-item {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%; padding: 10px 14px;
+  background: transparent; border: none; border-bottom: 1px solid var(--border);
+  cursor: pointer; text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.1s;
+}
+.console .platform-dropdown-item:last-child { border-bottom: none; }
+.console .platform-dropdown-item:hover { background: var(--bg2); }
+.console .platform-dropdown-item.active { background: var(--orange-dim); }
+.console .platform-dropdown-name {
+  font-size: 12px; color: var(--textb); font-weight: 500;
+}
+.console .platform-dropdown-id {
+  font-size: 9px; color: var(--text2);
+}
+
+/* ─── User Pill (clickable) ────────────────────────────── */
+.console .user-pill {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 10px 14px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text);
+  transition: all 0.15s;
+}
+.console .user-pill:hover {
+  border-color: var(--border2); color: var(--textb);
+}
+.console .user-pill .label {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ─── Profile Panel ────────────────────────────────────── */
+.console .profile-panel {
+  position: absolute; bottom: calc(100% + 8px); left: 0; right: 0;
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.5);
+  z-index: 100;
+}
+.console .profile-panel-header {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px; color: var(--textb);
+  margin-bottom: 14px;
+}
+.console .profile-kv {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-bottom: 10px;
+}
+.console .profile-kv-k {
+  font-size: 9px; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;
+}
+.console .profile-kv-v {
+  font-size: 12px; color: var(--textb);
+  word-break: break-all;
+}
+.console .profile-logout {
+  width: 100%; padding: 8px 14px; margin-top: 6px;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--err);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  transition: all 0.15s;
+}
+.console .profile-logout:hover {
+  background: rgba(239,68,68,0.15);
+}
+
+/* ─── Modal ────────────────────────────────────────────── */
+.console .modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.console .modal {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px;
+  width: 100%; max-width: 420px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.console .modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.console .modal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px; color: var(--textb);
+}
+.console .modal-close {
+  width: 32px; height: 32px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  color: var(--text2); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+}
+.console .modal-close:hover {
+  border-color: var(--border2); color: var(--textb);
+}
