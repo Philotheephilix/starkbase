@@ -1,5 +1,8 @@
 # Starkbase
 
+https://www.npmjs.com/package/@starkbase/sdk
+https://www.npmjs.com/package/@starkbase/types
+
 **Decentralized Backend-as-a-Service for Starknet** — Build full-stack dApps without writing Cairo.
 
 > Firebase/Supabase equivalent for Starknet. One SDK. Auth, storage, tokens, NFTs, events — all wired to Starknet with zero blockchain UX friction.
