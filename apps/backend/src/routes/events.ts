@@ -10,7 +10,7 @@ export async function eventRoutes(
   // Create event — deploys EventNFT contract
   app.post<{
     Body: { name: string; description: string; imageUrl: string; maxSupply?: number };
-  }>('/', async (req, reply) => {
+  }>('/', { config: { permission: 'events:create' } }, async (req, reply) => {
     const user = (req as any).user;
     const event = await svc.createEvent(
       user.platformId,
@@ -25,13 +25,13 @@ export async function eventRoutes(
   });
 
   // List events for platform
-  app.get('/', async (req) => {
+  app.get('/', { config: { permission: 'schemas:read' } }, async (req) => {
     const user = (req as any).user;
     return svc.listEvents(user.platformId);
   });
 
   // Get single event
-  app.get<{ Params: { id: string } }>('/:id', async (req) => {
+  app.get<{ Params: { id: string } }>('/:id', { config: { permission: 'schemas:read' } }, async (req) => {
     const user = (req as any).user;
     return svc.getEvent(req.params.id, user.platformId);
   });
@@ -40,7 +40,7 @@ export async function eventRoutes(
   app.post<{
     Params: { id: string };
     Body: { recipient: string };
-  }>('/:id/mint', async (req, reply) => {
+  }>('/:id/mint', { config: { permission: 'events:mint' } }, async (req, reply) => {
     const user = (req as any).user;
     const mint = await svc.mintToUser(
       req.params.id,
@@ -53,7 +53,7 @@ export async function eventRoutes(
   });
 
   // List mints for event
-  app.get<{ Params: { id: string } }>('/:id/mints', async (req) => {
+  app.get<{ Params: { id: string } }>('/:id/mints', { config: { permission: 'schemas:read' } }, async (req) => {
     const user = (req as any).user;
     return svc.listMints(req.params.id, user.platformId);
   });

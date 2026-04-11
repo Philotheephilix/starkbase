@@ -14,7 +14,7 @@ export async function schemaRoutes(
   const svc = opts.schemaSvc;
 
   // GET /schemas — list all schemas for this platform
-  app.get('/', async (req, reply) => {
+  app.get('/', { config: { permission: 'schemas:read' } }, async (req, reply) => {
     const { platformId } = getUser(req);
     try {
       return svc.listSchemas(platformId);
@@ -26,6 +26,7 @@ export async function schemaRoutes(
   // POST /schemas — create schema (onchain=true anchors commitment in registry contract)
   app.post<{ Body: { name: string; fields: Record<string, SchemaFieldDef>; onchain?: boolean } }>(
     '/',
+    { config: { permission: 'schemas:write' } },
     async (req, reply) => {
       const { walletAddress, platformId } = getUser(req);
       try {
@@ -45,6 +46,7 @@ export async function schemaRoutes(
   // GET /schemas/:schemaName — get schema definition
   app.get<{ Params: { schemaName: string } }>(
     '/:schemaName',
+    { config: { permission: 'schemas:read' } },
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {
@@ -58,6 +60,7 @@ export async function schemaRoutes(
   // GET /schemas/:schemaName/verify — cross-reference SQLite commitment vs onchain registry
   app.get<{ Params: { schemaName: string } }>(
     '/:schemaName/verify',
+    { config: { permission: 'schemas:read' } },
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {
@@ -71,6 +74,7 @@ export async function schemaRoutes(
   // Static segment 'query' registered before param ':key' — Fastify prefers static over param
   app.post<{ Params: { schemaName: string }; Body: { filter: Record<string, unknown> } }>(
     '/:schemaName/docs/query',
+    { config: { permission: 'docs:read' } },
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {
@@ -83,6 +87,7 @@ export async function schemaRoutes(
 
   app.post<{ Params: { schemaName: string; key: string }; Body: Record<string, unknown> }>(
     '/:schemaName/docs/:key',
+    { config: { permission: 'docs:write' } },
     async (req, reply) => {
       const { walletAddress, platformId } = getUser(req);
       try {
@@ -101,6 +106,7 @@ export async function schemaRoutes(
 
   app.get<{ Params: { schemaName: string } }>(
     '/:schemaName/docs',
+    { config: { permission: 'docs:read' } },
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {
@@ -114,6 +120,7 @@ export async function schemaRoutes(
   // Static segment 'history' registered before param ':key' for GET
   app.get<{ Params: { schemaName: string; key: string } }>(
     '/:schemaName/docs/:key/history',
+    { config: { permission: 'docs:read' } },
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {
@@ -126,6 +133,7 @@ export async function schemaRoutes(
 
   app.get<{ Params: { schemaName: string; key: string } }>(
     '/:schemaName/docs/:key',
+    { config: { permission: 'docs:read' } },
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {
@@ -138,6 +146,7 @@ export async function schemaRoutes(
 
   app.put<{ Params: { schemaName: string; key: string }; Body: Record<string, unknown> }>(
     '/:schemaName/docs/:key',
+    { config: { permission: 'docs:write' } },
     async (req, reply) => {
       const { walletAddress, platformId } = getUser(req);
       try {
@@ -156,6 +165,7 @@ export async function schemaRoutes(
 
   app.delete<{ Params: { schemaName: string; key: string } }>(
     '/:schemaName/docs/:key',
+    { config: { permission: 'docs:delete' } },
     async (req, reply) => {
       const { platformId } = getUser(req);
       try {

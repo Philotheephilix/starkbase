@@ -10,7 +10,7 @@ export async function tokenRoutes(
   // Deploy a new token contract — only authenticated users
   app.post<{
     Body: { name: string; symbol: string; initialSupply: string; recipientAddress: string };
-  }>('/deploy', async (req, reply) => {
+  }>('/deploy', { config: { permission: 'tokens:deploy' } }, async (req, reply) => {
     const user = (req as any).user;
     const token = await svc.deployToken(
       req.body.name,
@@ -28,7 +28,7 @@ export async function tokenRoutes(
   app.post<{
     Params: { address: string };
     Body: { recipient: string; amount: string };
-  }>('/:address/mint', async (req, reply) => {
+  }>('/:address/mint', { config: { permission: 'tokens:mint' } }, async (req, reply) => {
     const user = (req as any).user;
     const result = await svc.mintToken(
       req.params.address,
@@ -42,13 +42,13 @@ export async function tokenRoutes(
   });
 
   // List all tokens for the authenticated platform
-  app.get('/', async (req) => {
+  app.get('/', { config: { permission: 'schemas:read' } }, async (req) => {
     const user = (req as any).user;
     return svc.listTokens(user.platformId);
   });
 
   // Fetch on-chain mint history from Starknet RPC
-  app.get<{ Params: { address: string } }>('/:address/history', async (req) => {
+  app.get<{ Params: { address: string } }>('/:address/history', { config: { permission: 'schemas:read' } }, async (req) => {
     return svc.getMintHistory(req.params.address);
   });
 }

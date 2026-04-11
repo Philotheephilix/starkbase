@@ -21,7 +21,7 @@ export async function blobRegistryRoutes(
 
   // Deploy the StarkbaseRegistry contract.
   // Only needs to be called once; save returned address to BLOB_REGISTRY_CONTRACT in .env.
-  app.post('/deploy', async () => {
+  app.post('/deploy', { config: { permission: 'registry:deploy' } }, async () => {
     const result = await svc.deployContract();
     return { address: result.address, txHash: result.txHash };
   });
@@ -30,6 +30,7 @@ export async function blobRegistryRoutes(
   // platformId defaults to the caller's platform from the JWT if not provided.
   app.post<{ Body: { platformId?: string; contractAddress?: string } }>(
     '/register-platform',
+    { config: { permission: 'registry:anchor' } },
     async (req) => {
       const { walletAddress, platformId: jwtPlatformId } = user(req);
       const platformId = req.body.platformId ?? jwtPlatformId;
@@ -43,6 +44,7 @@ export async function blobRegistryRoutes(
   // walletAddress defaults to the caller's wallet from the JWT.
   app.post<{ Body: { commitment: string; platformId?: string; walletAddress?: string; contractAddress?: string } }>(
     '/create',
+    { config: { permission: 'registry:anchor' } },
     async (req) => {
       const { walletAddress: jwtWallet, platformId: jwtPlatform } = user(req);
       const platformId = req.body.platformId ?? jwtPlatform;
@@ -57,6 +59,7 @@ export async function blobRegistryRoutes(
   // Update the wallet address for an existing (platformId, commitment) pair on-chain.
   app.put<{ Body: { commitment: string; platformId?: string; walletAddress?: string; contractAddress?: string } }>(
     '/update',
+    { config: { permission: 'registry:anchor' } },
     async (req) => {
       const { walletAddress: jwtWallet, platformId: jwtPlatform } = user(req);
       const platformId = req.body.platformId ?? jwtPlatform;
@@ -72,6 +75,7 @@ export async function blobRegistryRoutes(
   // Reverts if the platform is not registered.
   app.get<{ Querystring: { platformId: string; commitment: string; contractAddress?: string } }>(
     '/fetch',
+    { config: { permission: 'schemas:read' } },
     async (req) => {
       const { platformId, commitment, contractAddress: queryContract } = req.query;
       const contract = queryContract ?? contractAddress();
@@ -83,6 +87,7 @@ export async function blobRegistryRoutes(
   // Check whether a platform is registered (read-only).
   app.get<{ Querystring: { platformId: string; contractAddress?: string } }>(
     '/is-registered',
+    { config: { permission: 'schemas:read' } },
     async (req) => {
       const { platformId, contractAddress: queryContract } = req.query;
       const contract = queryContract ?? contractAddress();
@@ -94,6 +99,7 @@ export async function blobRegistryRoutes(
   // Get all commitments for a platform: reads on-chain keys, enriches from SQLite.
   app.get<{ Params: { platformId: string }; Querystring: { contractAddress?: string } }>(
     '/platform/:platformId/commitments',
+    { config: { permission: 'schemas:read' } },
     async (req) => {
       const { platformId } = req.params;
       const contract = req.query.contractAddress ?? contractAddress();
