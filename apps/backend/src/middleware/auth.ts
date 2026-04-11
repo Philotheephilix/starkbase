@@ -35,6 +35,12 @@ declare module 'fastify' {
     user?: UserIdentity;
     platformId?: string;
   }
+  interface FastifyInstance {
+    ownerService: import('../services/owner-service').OwnerService;
+    roleService: import('../services/role-service').RoleService;
+    auditService: import('../services/audit-service').AuditService;
+    db: import('better-sqlite3').Database;
+  }
 }
 
 export function createAuthMiddleware(ownerJwtSecret: string, userJwtSecret: string, db: Database.Database) {

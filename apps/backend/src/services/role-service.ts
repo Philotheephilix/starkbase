@@ -117,13 +117,27 @@ export class RoleService {
     return Array.from(roleMap.values());
   }
 
-  /** Get a single role by id, or null. */
+  /** Get a single role by id, or null (single JOIN query). */
   getRole(roleId: string): RoleRow | null {
-    const r = this.db
-      .prepare('SELECT id, platform_id, name, is_system, created_at FROM roles WHERE id = ?')
-      .get(roleId) as any | undefined;
-    if (!r) return null;
-    return this.hydrateRole(r);
+    const rows = this.db
+      .prepare(`
+        SELECT r.id, r.platform_id, r.name, r.is_system, r.created_at, rp.permission
+        FROM roles r
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        WHERE r.id = ?
+      `)
+      .all(roleId) as Array<{ id: string; platform_id: string; name: string; is_system: number; created_at: number; permission: string | null }>;
+
+    if (rows.length === 0) return null;
+    const first = rows[0];
+    return {
+      id: first.id,
+      platformId: first.platform_id,
+      name: first.name,
+      isSystem: first.is_system === 1,
+      permissions: rows.filter(r => r.permission !== null).map(r => r.permission as Permission),
+      createdAt: first.created_at,
+    };
   }
 
   /** Replace all permissions for a role. */

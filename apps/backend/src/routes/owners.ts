@@ -2,10 +2,10 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { generateApiKey, hashApiKey, newId } from '../utils/crypto';
 
 export async function ownerRoutes(app: FastifyInstance) {
-  const ownerService = (app as any).ownerService;
-  const roleService = (app as any).roleService;
-  const auditService = (app as any).auditService;
-  const db = (app as any).db;
+  const ownerService = app.ownerService;
+  const roleService = app.roleService;
+  const auditService = app.auditService;
+  const db = app.db;
 
   /** Returns platformId if the request is from an owner who owns it, or sends 401/403. */
   function requireOwnership(request: FastifyRequest, reply: FastifyReply): string | null {
