@@ -15,11 +15,21 @@ describe('permissionMiddleware', () => {
   const getUserPermissions = vi.fn();
   const permissionMiddleware = createPermissionMiddleware(getUserPermissions);
 
-  it('skips for owner requests (implicit full access)', async () => {
-    const req = mockRequest({ authType: 'owner' });
+  it('skips for owner requests on routes without permission config', async () => {
+    const req = mockRequest({ authType: 'owner', routeOptions: { config: {} } });
     const reply = mockReply();
     await permissionMiddleware(req as any, reply);
     expect(reply.status).not.toHaveBeenCalled();
+  });
+
+  it('rejects owner tokens on permission-gated user routes', async () => {
+    const req = mockRequest({
+      authType: 'owner',
+      routeOptions: { config: { permission: 'schemas:read' } },
+    });
+    const reply = mockReply();
+    await permissionMiddleware(req as any, reply);
+    expect(reply.status).toHaveBeenCalledWith(403);
   });
 
   it('passes when user has required permission', async () => {
