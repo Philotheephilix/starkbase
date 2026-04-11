@@ -37,7 +37,7 @@ export class AuditService {
       randomUUID(), entry.actorType, entry.actorId, entry.platformId ?? null,
       entry.action, entry.targetType ?? null, entry.targetId ?? null,
       entry.metadata ? JSON.stringify(entry.metadata) : null,
-      entry.ipAddress ?? null, Date.now(),
+      entry.ipAddress ?? null, Math.floor(Date.now() / 1000),
     );
   }
 

@@ -20,15 +20,17 @@ function Root() {
 
   // Listen for localStorage changes from other components (e.g., App.tsx platform selector)
   useEffect(() => {
-    const onStorage = () => {
-      setPlatformId(localStorage.getItem('sb_platform_id') || DEFAULT_PLATFORM_ID);
-      setApiKey(localStorage.getItem('sb_api_key') || DEFAULT_API_KEY);
+    const sync = () => {
+      const newPid = localStorage.getItem('sb_platform_id') || DEFAULT_PLATFORM_ID;
+      const newKey = localStorage.getItem('sb_api_key') || DEFAULT_API_KEY;
+      setPlatformId(prev => prev === newPid ? prev : newPid);
+      setApiKey(prev => prev === newKey ? prev : newKey);
     };
-    window.addEventListener('storage', onStorage);
-    // Also poll for same-tab changes since storage event only fires cross-tab
-    const interval = setInterval(onStorage, 500);
+    window.addEventListener('storage', sync);
+    // Poll for same-tab changes (storage event only fires cross-tab)
+    const interval = setInterval(sync, 2000);
     return () => {
-      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('storage', sync);
       clearInterval(interval);
     };
   }, []);

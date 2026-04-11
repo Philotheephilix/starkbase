@@ -37,7 +37,7 @@ export class RoleService {
         'INSERT OR IGNORE INTO role_permissions (role_id, permission) VALUES (?, ?)',
       );
 
-      const now = Date.now();
+      const now = Math.floor(Date.now() / 1000);
 
       // Check if admin exists
       const adminExists = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'admin' AND is_system = 1").get(platformId) as any;
@@ -66,7 +66,7 @@ export class RoleService {
     this.validatePermissions(permissions);
 
     const id = randomUUID();
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000);
 
     this.db.transaction(() => {
       this.db
@@ -93,13 +93,27 @@ export class RoleService {
     };
   }
 
-  /** List all roles for a platform, each with their permissions. */
+  /** List all roles for a platform, each with their permissions (single JOIN query). */
   listRoles(platformId: string): RoleRow[] {
-    const roles = this.db
-      .prepare('SELECT id, platform_id, name, is_system, created_at FROM roles WHERE platform_id = ?')
-      .all(platformId) as any[];
+    const rows = this.db
+      .prepare(`
+        SELECT r.id, r.platform_id, r.name, r.is_system, r.created_at, rp.permission
+        FROM roles r
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        WHERE r.platform_id = ?
+      `)
+      .all(platformId) as Array<{ id: string; platform_id: string; name: string; is_system: number; created_at: number; permission: string | null }>;
 
-    return roles.map((r) => this.hydrateRole(r));
+    const roleMap = new Map<string, RoleRow>();
+    for (const row of rows) {
+      let role = roleMap.get(row.id);
+      if (!role) {
+        role = { id: row.id, platformId: row.platform_id, name: row.name, isSystem: row.is_system === 1, permissions: [], createdAt: row.created_at };
+        roleMap.set(row.id, role);
+      }
+      if (row.permission) role.permissions.push(row.permission as Permission);
+    }
+    return Array.from(roleMap.values());
   }
 
   /** Get a single role by id, or null. */
@@ -158,7 +172,7 @@ export class RoleService {
       .prepare(
         'INSERT OR IGNORE INTO platform_user_roles (user_id, role_id, assigned_by, assigned_at) VALUES (?, ?, ?, ?)',
       )
-      .run(userId, roleId, assignedBy, Date.now());
+      .run(userId, roleId, assignedBy, Math.floor(Date.now() / 1000));
   }
 
   /** Remove a role assignment from a user. */

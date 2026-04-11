@@ -1,24 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useStarkbase } from '@starkbase/sdk';
 import type { Platform } from '@starkbase/sdk';
-
-function CopyBtn({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => () => { clearTimeout(timerRef.current); }, []);
-  const copy = () => {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <button className={`copy-btn${copied ? ' ok' : ''}`} onClick={copy}>
-      {copied ? 'copied' : 'copy'}
-    </button>
-  );
-}
+import { CopyBtn } from '../components/ui/copy-btn';
 
 function maskKey(key: string): string {
   if (key.length <= 12) return '***';

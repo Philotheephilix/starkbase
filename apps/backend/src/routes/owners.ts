@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID, createHash } from 'crypto';
 
 export async function ownerRoutes(app: FastifyInstance) {
@@ -6,6 +6,20 @@ export async function ownerRoutes(app: FastifyInstance) {
   const roleService = (app as any).roleService;
   const auditService = (app as any).auditService;
   const db = (app as any).db;
+
+  /** Returns platformId if the request is from an owner who owns it, or sends 401/403. */
+  function requireOwnership(request: FastifyRequest, reply: FastifyReply): string | null {
+    if (request.authType !== 'owner') {
+      reply.status(401).send({ error: 'Owner token required' });
+      return null;
+    }
+    const { platformId } = request.params as any;
+    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
+      reply.status(403).send({ error: 'You do not own this platform' });
+      return null;
+    }
+    return platformId;
+  }
 
   // ── Public routes ────────────────────────────────────────────────────
 
@@ -73,10 +87,9 @@ export async function ownerRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: 'Owner token required' });
     }
 
-    const platformIds = ownerService.getOwnedPlatformIds(request.owner!.ownerId);
-    const platforms = platformIds.map((id: string) => {
-      return db.prepare('SELECT id, name, created_at FROM platforms WHERE id = ?').get(id);
-    }).filter(Boolean);
+    const platforms = db.prepare(
+      'SELECT p.id, p.name, p.created_at FROM platforms p JOIN owner_platforms op ON p.id = op.platform_id WHERE op.owner_id = ?'
+    ).all(request.owner!.ownerId);
 
     return platforms;
   });
@@ -124,13 +137,8 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.delete('/platforms/:platformId', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     db.transaction(() => {
       db.prepare('UPDATE platform_users SET deployed = -1 WHERE platform_id = ?').run(platformId);
@@ -158,13 +166,8 @@ export async function ownerRoutes(app: FastifyInstance) {
   // ── User management routes ───────────────────────────────────────────
 
   app.get('/platforms/:platformId/users', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     const users = db.prepare(
       'SELECT id, platform_id, username, wallet_address, deployed, created_at FROM platform_users WHERE platform_id = ?'
@@ -177,13 +180,9 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.post('/platforms/:platformId/users/:userId/roles', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId, userId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
+    const { userId } = request.params as any;
 
     const { roleId } = request.body as any;
     if (!roleId) {
@@ -205,13 +204,9 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.delete('/platforms/:platformId/users/:userId/roles/:roleId', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId, userId, roleId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
+    const { userId, roleId } = request.params as any;
 
     roleService.removeRole(userId, roleId);
 
@@ -229,13 +224,9 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.delete('/platforms/:platformId/users/:userId', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId, userId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
+    const { userId } = request.params as any;
 
     // Remove all role assignments
     const userRoles = roleService.getUserRoles(userId);
@@ -261,25 +252,15 @@ export async function ownerRoutes(app: FastifyInstance) {
   // ── Role management routes ───────────────────────────────────────────
 
   app.get('/platforms/:platformId/roles', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     return roleService.listRoles(platformId);
   });
 
   app.post('/platforms/:platformId/roles', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     const { name, permissions } = request.body as any;
     if (!name || !permissions) {
@@ -304,13 +285,9 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.put('/platforms/:platformId/roles/:roleId', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId, roleId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
+    const { roleId } = request.params as any;
 
     const { permissions } = request.body as any;
     if (!permissions) {
@@ -340,13 +317,9 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.delete('/platforms/:platformId/roles/:roleId', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId, roleId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
+    const { roleId } = request.params as any;
 
     try {
       roleService.deleteRole(roleId);
@@ -368,13 +341,8 @@ export async function ownerRoutes(app: FastifyInstance) {
   // ── Settings ─────────────────────────────────────────────────────────
 
   app.put('/platforms/:platformId/settings', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     const { allowedOrigins, registrationEnabled } = request.body as any;
     const now = Math.floor(Date.now() / 1000);
@@ -412,13 +380,8 @@ export async function ownerRoutes(app: FastifyInstance) {
   // ── API key rotation ─────────────────────────────────────────────────
 
   app.post('/platforms/:platformId/api-keys/rotate', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     const rawApiKey = `sb_${randomUUID().replace(/-/g, '')}`;
     const apiKeyHash = createHash('sha256').update(rawApiKey).digest('hex');
@@ -440,13 +403,8 @@ export async function ownerRoutes(app: FastifyInstance) {
   // ── Storage registry management ──────────────────────────────────────
 
   app.post('/platforms/:platformId/registries', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     const { name, maxFileSize, maxTotalSize, allowedMimeTypes } = request.body as any;
     if (!name) {
@@ -481,25 +439,16 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.get('/platforms/:platformId/registries', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
 
     return db.prepare('SELECT * FROM storage_registries WHERE platform_id = ?').all(platformId);
   });
 
   app.put('/platforms/:platformId/registries/:registryId', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId, registryId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
+    const { registryId } = request.params as any;
 
     const existing = db.prepare('SELECT * FROM storage_registries WHERE id = ? AND platform_id = ?').get(registryId, platformId);
     if (!existing) {
@@ -526,13 +475,9 @@ export async function ownerRoutes(app: FastifyInstance) {
   });
 
   app.delete('/platforms/:platformId/registries/:registryId', async (request, reply) => {
-    if (request.authType !== 'owner') {
-      return reply.status(401).send({ error: 'Owner token required' });
-    }
-    const { platformId, registryId } = request.params as any;
-    if (!ownerService.ownsPlatform(request.owner!.ownerId, platformId)) {
-      return reply.status(403).send({ error: 'You do not own this platform' });
-    }
+    const platformId = requireOwnership(request, reply);
+    if (!platformId) return;
+    const { registryId } = request.params as any;
 
     db.prepare('UPDATE blob_files SET deleted = 1 WHERE registry_id = ?').run(registryId);
     db.prepare('DELETE FROM storage_registries WHERE id = ? AND platform_id = ?').run(registryId, platformId);
