@@ -27,11 +27,13 @@ export default function EventsView() {
 
   useEffect(() => {
     if (!platformId) return;
+    let cancelled = false;
     setUsersLoading(true);
     client.auth.listUsers(platformId)
-      .then(users => setPlatformUsers(users.filter(u => u.deployed && u.walletAddress)))
-      .catch(() => setPlatformUsers([]))
-      .finally(() => setUsersLoading(false));
+      .then(users => { if (!cancelled) setPlatformUsers(users.filter(u => u.deployed && u.walletAddress)); })
+      .catch(() => { if (!cancelled) setPlatformUsers([]); })
+      .finally(() => { if (!cancelled) setUsersLoading(false); });
+    return () => { cancelled = true; };
   }, [client, platformId]);
 
   // Create form

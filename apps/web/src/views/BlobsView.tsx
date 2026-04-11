@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useBlobs } from '@starkbase/sdk';
 import type { BlobFile, BlobVerifyResult } from '@starkbase/sdk';
 
@@ -249,9 +249,8 @@ export default function BlobsView() {
             </thead>
             <tbody>
               {blobs.map(blob => (
-                <>
+                <React.Fragment key={blob.id}>
                   <tr
-                    key={blob.id}
                     style={{ cursor: 'pointer' }}
                     onClick={() => setExpanded(expanded === blob.id ? null : blob.id)}
                   >
@@ -316,7 +315,7 @@ export default function BlobsView() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

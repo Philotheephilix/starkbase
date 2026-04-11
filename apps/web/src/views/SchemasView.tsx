@@ -50,16 +50,20 @@ export default function SchemasView() {
   const [verifyResult, setVerifyResult] = useState<SchemaVerifyResult | null>(null);
   const [verifyError, setVerifyError] = useState('');
 
-  const loadSchemas = useCallback(async () => {
+  const loadSchemas = useCallback(async (signal?: { cancelled: boolean }) => {
     setSchemasLoading(true);
     try {
       const list = await listSchemas();
-      setSchemas(list);
+      if (!signal?.cancelled) setSchemas(list);
     } catch { /* ignore */ }
-    finally { setSchemasLoading(false); }
+    finally { if (!signal?.cancelled) setSchemasLoading(false); }
   }, [listSchemas]);
 
-  useEffect(() => { loadSchemas(); }, [loadSchemas]);
+  useEffect(() => {
+    const signal = { cancelled: false };
+    loadSchemas(signal);
+    return () => { signal.cancelled = true; };
+  }, [loadSchemas]);
 
   // Schema selector dropdown
   const selectSchema = (s: SchemaRecord) => {
