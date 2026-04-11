@@ -5,9 +5,7 @@ import type Database from 'better-sqlite3';
 import type { WalletService } from './wallet-service';
 import type { PlatformService } from './platform-service';
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret';
 const BCRYPT_ROUNDS = 12;
-const SESSION_TTL_SECONDS = 86400; // 24 hours
 
 export interface RegisterResult {
   walletAddress: string;
@@ -33,15 +31,26 @@ interface UserRow {
 }
 
 export class AuthService {
+  private jwtSecret: string;
+
   constructor(
     private db: Database.Database,
     private walletSvc: WalletService,
-    private platformSvc: PlatformService
-  ) {}
+    private platformSvc: PlatformService,
+    jwtSecret: string,
+  ) {
+    this.jwtSecret = jwtSecret;
+  }
 
   async register(apiKey: string, username: string, password: string): Promise<RegisterResult> {
     const platform = this.platformSvc.getByApiKey(apiKey);
     if (!platform) throw Object.assign(new Error('Invalid API key'), { statusCode: 401 });
+
+    // Check if registration is enabled for this platform
+    const settings = this.db.prepare('SELECT registration_enabled FROM platform_settings WHERE platform_id = ?').get(platform.id) as any;
+    if (settings && settings.registration_enabled === 0) {
+      throw Object.assign(new Error('Registration is disabled for this platform'), { statusCode: 403 });
+    }
 
     const existing = this.db
       .prepare('SELECT id FROM platform_users WHERE platform_id = ? AND username = ?')
@@ -74,6 +83,12 @@ export class AuthService {
     this.db
       .prepare('UPDATE platform_users SET wallet_address = ?, deployed = 1 WHERE id = ?')
       .run(walletAddress, userId);
+
+    // Assign default member role
+    const memberRole = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'member' AND is_system = 1").get(platform.id) as any;
+    if (memberRole) {
+      this.db.prepare("INSERT OR IGNORE INTO platform_user_roles (user_id, role_id, assigned_by, assigned_at) VALUES (?, ?, 'system', ?)").run(userId, memberRole.id, Date.now());
+    }
 
     const sessionToken = this.signToken({
       userId,
@@ -121,12 +136,7 @@ export class AuthService {
   }
 
   verifySession(sessionToken: string): AuthUser {
-    const payload = jwt.verify(sessionToken, JWT_SECRET) as {
-      userId: string;
-      username: string;
-      platformId: string;
-      walletAddress: string;
-    };
+    const payload = jwt.verify(sessionToken, this.jwtSecret, { issuer: 'starkbase', audience: 'user' }) as any;
     return {
       userId: payload.userId,
       username: payload.username,
@@ -137,7 +147,6 @@ export class AuthService {
 
   revokeSession(_sessionToken: string): void {
     // Stateless JWT — client-side logout drops the token
-    // Add sessions table lookup here if server-side revocation is needed
   }
 
   private signToken(payload: {
@@ -146,6 +155,10 @@ export class AuthService {
     platformId: string;
     walletAddress: string;
   }): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: SESSION_TTL_SECONDS });
+    return jwt.sign(
+      { type: 'user', ...payload, tokenVersion: 0 },
+      this.jwtSecret,
+      { expiresIn: '24h', issuer: 'starkbase', audience: 'user' },
+    );
   }
 }
