@@ -1,5 +1,5 @@
-import crypto, { createHash } from 'crypto';
 import type Database from 'better-sqlite3';
+import { generateApiKey, hashApiKey, newId } from '../utils/crypto';
 
 export interface Platform {
   id: string;
@@ -21,9 +21,9 @@ export class PlatformService {
   constructor(private db: Database.Database) {}
 
   createPlatform(name: string, creatorWallet: string = ''): Platform {
-    const id = crypto.randomUUID();
-    const rawApiKey = `sb_${crypto.randomBytes(24).toString('hex')}`;
-    const apiKeyHash = createHash('sha256').update(rawApiKey).digest('hex');
+    const id = newId();
+    const rawApiKey = generateApiKey();
+    const apiKeyHash = hashApiKey(rawApiKey);
     const createdAt = Math.floor(Date.now() / 1000);
     this.db
       .prepare('INSERT INTO platforms (id, name, api_key, creator_wallet, created_at) VALUES (?, ?, ?, ?, ?)')
@@ -53,7 +53,7 @@ export class PlatformService {
   }
 
   getByApiKey(apiKey: string): Platform | null {
-    const hash = createHash('sha256').update(apiKey).digest('hex');
+    const hash = hashApiKey(apiKey);
     const row = this.db
       .prepare('SELECT * FROM platforms WHERE api_key = ?')
       .get(hash) as PlatformRow | undefined;

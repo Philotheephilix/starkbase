@@ -86,7 +86,7 @@ export class AuthService {
       .run(walletAddress, userId);
 
     // Assign default member role
-    const memberRole = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'member' AND is_system = 1").get(platform.id) as any;
+    const memberRole = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = ? AND is_system = 1").get(platform.id, 'member') as any;
     if (memberRole) {
       this.db.prepare("INSERT OR IGNORE INTO platform_user_roles (user_id, role_id, assigned_by, assigned_at) VALUES (?, ?, 'system', ?)").run(userId, memberRole.id, Math.floor(Date.now() / 1000));
     }

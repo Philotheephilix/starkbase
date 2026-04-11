@@ -90,6 +90,12 @@ export function runMigrations(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_audit_logs_platform ON audit_logs(platform_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_actor    ON audit_logs(actor_id, created_at);
+
+    CREATE INDEX IF NOT EXISTS idx_platform_user_roles_user_id ON platform_user_roles(user_id);
+    CREATE INDEX IF NOT EXISTS idx_platform_user_roles_role_id ON platform_user_roles(role_id);
+    CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
+    CREATE INDEX IF NOT EXISTS idx_owner_platforms_owner_id ON owner_platforms(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_roles_platform_id ON roles(platform_id);
   `);
 
   // ── Column additions to existing tables ───────────────────────────────

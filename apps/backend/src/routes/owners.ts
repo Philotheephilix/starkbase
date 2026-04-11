@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { randomUUID, createHash } from 'crypto';
+import { generateApiKey, hashApiKey, newId } from '../utils/crypto';
 
 export async function ownerRoutes(app: FastifyInstance) {
   const ownerService = (app as any).ownerService;
@@ -104,9 +104,9 @@ export async function ownerRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Platform name is required' });
     }
 
-    const id = randomUUID();
-    const rawApiKey = `sb_${randomUUID().replace(/-/g, '')}`;
-    const apiKeyHash = createHash('sha256').update(rawApiKey).digest('hex');
+    const id = newId();
+    const rawApiKey = generateApiKey();
+    const apiKeyHash = hashApiKey(rawApiKey);
     const now = Math.floor(Date.now() / 1000);
     const ownerId = request.owner!.ownerId;
 
@@ -383,8 +383,8 @@ export async function ownerRoutes(app: FastifyInstance) {
     const platformId = requireOwnership(request, reply);
     if (!platformId) return;
 
-    const rawApiKey = `sb_${randomUUID().replace(/-/g, '')}`;
-    const apiKeyHash = createHash('sha256').update(rawApiKey).digest('hex');
+    const rawApiKey = generateApiKey();
+    const apiKeyHash = hashApiKey(rawApiKey);
 
     db.prepare('UPDATE platforms SET api_key = ? WHERE id = ?').run(apiKeyHash, platformId);
 
@@ -411,7 +411,7 @@ export async function ownerRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Registry name is required' });
     }
 
-    const id = randomUUID();
+    const id = newId();
     const now = Math.floor(Date.now() / 1000);
 
     try {

@@ -1,9 +1,10 @@
 import type Database from 'better-sqlite3';
-import { randomUUID } from 'crypto';
+import { newId } from '../utils/crypto';
 import {
   ALL_PERMISSIONS,
   ADMIN_PERMISSIONS,
   MEMBER_PERMISSIONS,
+  SYSTEM_ROLES,
   type Permission,
 } from '../constants/permissions';
 
@@ -40,20 +41,20 @@ export class RoleService {
       const now = Math.floor(Date.now() / 1000);
 
       // Check if admin exists
-      const adminExists = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'admin' AND is_system = 1").get(platformId) as any;
+      const adminExists = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = ? AND is_system = 1").get(platformId, SYSTEM_ROLES.ADMIN) as any;
       if (!adminExists) {
-        const adminId = randomUUID();
-        insertRole.run(adminId, platformId, 'admin', now);
+        const adminId = newId();
+        insertRole.run(adminId, platformId, SYSTEM_ROLES.ADMIN, now);
         for (const p of ADMIN_PERMISSIONS) {
           insertPerm.run(adminId, p);
         }
       }
 
       // Check if member exists
-      const memberExists = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'member' AND is_system = 1").get(platformId) as any;
+      const memberExists = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = ? AND is_system = 1").get(platformId, SYSTEM_ROLES.MEMBER) as any;
       if (!memberExists) {
-        const memberId = randomUUID();
-        insertRole.run(memberId, platformId, 'member', now);
+        const memberId = newId();
+        insertRole.run(memberId, platformId, SYSTEM_ROLES.MEMBER, now);
         for (const p of MEMBER_PERMISSIONS) {
           insertPerm.run(memberId, p);
         }
@@ -65,7 +66,7 @@ export class RoleService {
   createRole(platformId: string, name: string, permissions: string[]): RoleRow {
     this.validatePermissions(permissions);
 
-    const id = randomUUID();
+    const id = newId();
     const now = Math.floor(Date.now() / 1000);
 
     this.db.transaction(() => {
@@ -196,18 +197,28 @@ export class RoleService {
     return rows.map((r) => r.permission as Permission);
   }
 
-  /** Get all roles assigned to a user, each with permissions. */
+  /** Get all roles assigned to a user, each with permissions (single JOIN query). */
   getUserRoles(userId: string): RoleRow[] {
-    const roles = this.db
+    const rows = this.db
       .prepare(
-        `SELECT r.id, r.platform_id, r.name, r.is_system, r.created_at
+        `SELECT r.id, r.platform_id, r.name, r.is_system, r.created_at, rp.permission
          FROM platform_user_roles pur
          JOIN roles r ON r.id = pur.role_id
+         LEFT JOIN role_permissions rp ON r.id = rp.role_id
          WHERE pur.user_id = ?`,
       )
-      .all(userId) as any[];
+      .all(userId) as Array<{ id: string; platform_id: string; name: string; is_system: number; created_at: number; permission: string | null }>;
 
-    return roles.map((r) => this.hydrateRole(r));
+    const roleMap = new Map<string, RoleRow>();
+    for (const row of rows) {
+      let role = roleMap.get(row.id);
+      if (!role) {
+        role = { id: row.id, platformId: row.platform_id, name: row.name, isSystem: row.is_system === 1, permissions: [], createdAt: row.created_at };
+        roleMap.set(row.id, role);
+      }
+      if (row.permission) role.permissions.push(row.permission as Permission);
+    }
+    return Array.from(roleMap.values());
   }
 
   // ── private helpers ──────────────────────────────────────────────────
