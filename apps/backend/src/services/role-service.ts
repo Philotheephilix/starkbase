@@ -143,8 +143,17 @@ export class RoleService {
     })();
   }
 
-  /** Assign a role to a user. Idempotent via INSERT OR IGNORE. */
+  /** Assign a role to a user. Validates role and user belong to the same platform. */
   assignRole(userId: string, roleId: string, assignedBy: string): void {
+    // Verify role and user belong to the same platform
+    const role = this.db.prepare('SELECT platform_id FROM roles WHERE id = ?').get(roleId) as any;
+    if (!role) throw new Error('Role not found');
+    const user = this.db.prepare('SELECT platform_id FROM platform_users WHERE id = ?').get(userId) as any;
+    if (!user) throw new Error('User not found');
+    if (role.platform_id !== user.platform_id) {
+      throw new Error('Role and user must belong to the same platform');
+    }
+
     this.db
       .prepare(
         'INSERT OR IGNORE INTO platform_user_roles (user_id, role_id, assigned_by, assigned_at) VALUES (?, ?, ?, ?)',

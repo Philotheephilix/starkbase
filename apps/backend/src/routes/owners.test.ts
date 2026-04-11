@@ -83,7 +83,7 @@ function buildApp() {
   app.decorate('db', db);
 
   // Add auth middleware that handles owner tokens
-  app.addHook('onRequest', createAuthMiddleware(JWT_OWNER_SECRET, 'test-user-secret'));
+  app.addHook('onRequest', createAuthMiddleware(JWT_OWNER_SECRET, 'test-user-secret', db));
 
   app.register(ownerRoutes, { prefix: '/owners' });
 

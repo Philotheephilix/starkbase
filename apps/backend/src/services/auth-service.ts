@@ -28,6 +28,7 @@ interface UserRow {
   password_hash: string;
   wallet_address: string | null;
   deployed: number;
+  token_version: number;
 }
 
 export class AuthService {
@@ -118,6 +119,7 @@ export class AuthService {
       username: row.username,
       platformId: row.platform_id,
       walletAddress,
+      tokenVersion: row.token_version ?? 0,
     });
     return { walletAddress, sessionToken, username: row.username, platformId: row.platform_id };
   }
@@ -154,9 +156,10 @@ export class AuthService {
     username: string;
     platformId: string;
     walletAddress: string;
+    tokenVersion?: number;
   }): string {
     return jwt.sign(
-      { type: 'user', ...payload, tokenVersion: 0 },
+      { type: 'user', userId: payload.userId, username: payload.username, platformId: payload.platformId, walletAddress: payload.walletAddress, tokenVersion: payload.tokenVersion ?? 0 },
       this.jwtSecret,
       { expiresIn: '24h', issuer: 'starkbase', audience: 'user' },
     );

@@ -132,10 +132,15 @@ export async function ownerRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'You do not own this platform' });
     }
 
-    db.prepare('UPDATE platform_users SET deployed = -1 WHERE platform_id = ?').run(platformId);
-    db.prepare('UPDATE blob_files SET deleted = 1 WHERE platform_id = ?').run(platformId);
-    db.prepare('UPDATE schema_documents SET deleted = 1 WHERE platform_id = ?').run(platformId);
-    db.prepare('DELETE FROM owner_platforms WHERE platform_id = ?').run(platformId);
+    db.transaction(() => {
+      db.prepare('UPDATE platform_users SET deployed = -1 WHERE platform_id = ?').run(platformId);
+      db.prepare('UPDATE blob_files SET deleted = 1 WHERE platform_id = ?').run(platformId);
+      db.prepare('UPDATE schema_documents SET deleted = 1 WHERE platform_id = ?').run(platformId);
+      // Nullify API key to prevent further auth against deleted platform
+      db.prepare('UPDATE platforms SET api_key = NULL WHERE id = ?').run(platformId);
+      db.prepare('DELETE FROM platform_settings WHERE platform_id = ?').run(platformId);
+      db.prepare('DELETE FROM owner_platforms WHERE platform_id = ?').run(platformId);
+    })();
 
     auditService.log({
       actorType: 'owner',
@@ -144,6 +149,7 @@ export async function ownerRoutes(app: FastifyInstance) {
       action: 'platform:deleted',
       targetType: 'platform',
       targetId: platformId,
+      ipAddress: request.ip,
     });
 
     return { success: true };
@@ -312,6 +318,11 @@ export async function ownerRoutes(app: FastifyInstance) {
     }
 
     try {
+      // Verify role belongs to this platform
+      const role = roleService.getRole(roleId);
+      if (!role || role.platformId !== platformId) {
+        return reply.status(404).send({ error: 'Role not found in this platform' });
+      }
       roleService.updateRolePermissions(roleId, permissions);
       auditService.log({
         actorType: 'owner',

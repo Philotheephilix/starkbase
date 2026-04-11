@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
+import type Database from 'better-sqlite3';
 
 const PUBLIC_PATHS = new Set([
   '/health',
@@ -36,7 +37,7 @@ declare module 'fastify' {
   }
 }
 
-export function createAuthMiddleware(ownerJwtSecret: string, userJwtSecret: string) {
+export function createAuthMiddleware(ownerJwtSecret: string, userJwtSecret: string, db: Database.Database) {
   return async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
     const path = request.url.split('?')[0];
 
@@ -59,10 +60,20 @@ export function createAuthMiddleware(ownerJwtSecret: string, userJwtSecret: stri
     try {
       if (unverified.aud === 'owner') {
         const decoded = jwt.verify(token, ownerJwtSecret, { issuer: 'starkbase', audience: 'owner' }) as any as OwnerIdentity;
+        // Validate tokenVersion against DB
+        const row = db.prepare('SELECT token_version FROM owners WHERE id = ?').get(decoded.ownerId) as any;
+        if (!row || row.token_version !== decoded.tokenVersion) {
+          return reply.status(401).send({ error: 'Token revoked' });
+        }
         request.authType = 'owner';
         request.owner = decoded;
       } else if (unverified.aud === 'user') {
         const decoded = jwt.verify(token, userJwtSecret, { issuer: 'starkbase', audience: 'user' }) as any as UserIdentity;
+        // Validate tokenVersion against DB
+        const row = db.prepare('SELECT token_version FROM platform_users WHERE id = ?').get(decoded.userId) as any;
+        if (!row || row.token_version !== decoded.tokenVersion) {
+          return reply.status(401).send({ error: 'Token revoked' });
+        }
         request.authType = 'user';
         request.user = decoded;
         request.platformId = decoded.platformId;

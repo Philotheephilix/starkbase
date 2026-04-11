@@ -59,8 +59,8 @@ export function buildApp(db?: Database.Database) {
   app.register(helmet, { contentSecurityPolicy: false });
 
   // Middleware chain: auth → scope → permission
-  app.addHook('onRequest', createAuthMiddleware(JWT_OWNER_SECRET, JWT_USER_SECRET));
-  app.addHook('onRequest', createScopeMiddleware((ownerId, platformId) => ownerSvc.ownsPlatform(ownerId, platformId)));
+  app.addHook('onRequest', createAuthMiddleware(JWT_OWNER_SECRET, JWT_USER_SECRET, resolvedDb));
+  app.addHook('onRequest', createScopeMiddleware((ownerId, platformId) => ownerSvc.ownsPlatform(ownerId, platformId), resolvedDb));
   app.addHook('onRequest', createPermissionMiddleware((userId) => roleSvc.getUserPermissions(userId)));
 
   // Decorate for route access
