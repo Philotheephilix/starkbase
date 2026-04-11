@@ -67,7 +67,9 @@ function buildApp() {
   const mockWalletService = {
     derivePrivateKey: () => '0xdeadbeef',
     computeAddress: () => '0xwallet123',
-    deployAccount: async () => '0xtx',
+    deployAccount: async () => ({ address: '0xwallet123' }),
+    getProvider: () => ({}),
+    getDeployer: () => ({}),
   };
 
   const ownerService = new OwnerService(db, mockWalletService as any, JWT_OWNER_SECRET);

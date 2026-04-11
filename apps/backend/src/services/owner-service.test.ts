@@ -7,7 +7,9 @@ import type Database from 'better-sqlite3';
 const mockWalletService: WalletServiceLike = {
   derivePrivateKey: vi.fn().mockReturnValue('0xdeadbeef'),
   computeAddress: vi.fn().mockReturnValue('0xwallet123'),
-  deployAccount: vi.fn().mockResolvedValue('0xtxhash'),
+  deployAccount: vi.fn().mockResolvedValue({ address: '0xwallet123' }),
+  getProvider: vi.fn().mockReturnValue({}),
+  getDeployer: vi.fn().mockReturnValue({}),
 };
 
 const JWT_SECRET = 'test-owner-jwt-secret';
@@ -38,7 +40,7 @@ describe('OwnerService.register', () => {
     expect(result.username).toBe('alice');
     expect(result.walletAddress).toBe('0xwallet123');
 
-    expect(mockWalletService.derivePrivateKey).toHaveBeenCalledWith('owner:alice');
+    expect(mockWalletService.derivePrivateKey).toHaveBeenCalledWith('owner', 'alice');
     expect(mockWalletService.computeAddress).toHaveBeenCalledWith('0xdeadbeef');
 
     // Verify password is hashed (not stored as plaintext)

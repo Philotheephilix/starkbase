@@ -6,9 +6,11 @@ import type Database from 'better-sqlite3';
 const BCRYPT_ROUNDS = 12;
 
 export interface WalletServiceLike {
-  derivePrivateKey(seed: string): string;
+  derivePrivateKey(platformId: string, username: string): string;
   computeAddress(privateKey: string): string;
-  deployAccount(privateKey: string, address: string): Promise<string>;
+  deployAccount(privateKey: string, provider: any, deployer: any): Promise<any>;
+  getProvider(): any;
+  getDeployer(provider: any): any;
 }
 
 export interface OwnerTokenPayload {
@@ -45,7 +47,7 @@ export class OwnerService {
   }): Promise<{ token: string; ownerId: string; username: string; walletAddress: string }> {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
-    const privateKey = this.walletService.derivePrivateKey('owner:' + input.username);
+    const privateKey = this.walletService.derivePrivateKey('owner', input.username);
     const walletAddress = this.walletService.computeAddress(privateKey);
 
     const ownerId = crypto.randomUUID();
@@ -58,7 +60,14 @@ export class OwnerService {
       .run(ownerId, input.username, input.email ?? null, passwordHash, walletAddress, now);
 
     // Deploy account in background — errors are caught silently
-    this.walletService.deployAccount(privateKey, walletAddress).catch(() => {});
+    // Deploy account in background — don't block registration
+    try {
+      const provider = this.walletService.getProvider();
+      const deployer = this.walletService.getDeployer(provider);
+      this.walletService.deployAccount(privateKey, provider, deployer).catch(() => {});
+    } catch {
+      // Provider/deployer may not be available in test environments
+    }
 
     const token = this.signToken(ownerId, input.username, walletAddress, 0);
     return { token, ownerId, username: input.username, walletAddress };
