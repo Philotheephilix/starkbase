@@ -289,3 +289,5 @@ export interface EventMint {
   txHash: string;
   mintedAt: string;
 }
+
+export * from './owner';
