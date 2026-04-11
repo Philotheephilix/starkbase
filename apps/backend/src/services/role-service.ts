@@ -25,30 +25,40 @@ export class RoleService {
   /** Create admin + member system roles with default permissions. Idempotent. */
   initSystemRoles(platformId: string): void {
     const existing = this.db
-      .prepare('SELECT id FROM roles WHERE platform_id = ? AND is_system = 1')
-      .get(platformId);
-    if (existing) return;
+      .prepare('SELECT COUNT(*) as cnt FROM roles WHERE platform_id = ? AND is_system = 1')
+      .get(platformId) as any;
+    if (existing && existing.cnt >= 2) return;
 
-    const insertRole = this.db.prepare(
-      'INSERT INTO roles (id, platform_id, name, is_system, created_at) VALUES (?, ?, ?, 1, ?)',
-    );
-    const insertPerm = this.db.prepare(
-      'INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)',
-    );
+    this.db.transaction(() => {
+      const insertRole = this.db.prepare(
+        'INSERT OR IGNORE INTO roles (id, platform_id, name, is_system, created_at) VALUES (?, ?, ?, 1, ?)',
+      );
+      const insertPerm = this.db.prepare(
+        'INSERT OR IGNORE INTO role_permissions (role_id, permission) VALUES (?, ?)',
+      );
 
-    const now = Date.now();
+      const now = Date.now();
 
-    const adminId = randomUUID();
-    insertRole.run(adminId, platformId, 'admin', now);
-    for (const p of ADMIN_PERMISSIONS) {
-      insertPerm.run(adminId, p);
-    }
+      // Check if admin exists
+      const adminExists = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'admin' AND is_system = 1").get(platformId) as any;
+      if (!adminExists) {
+        const adminId = randomUUID();
+        insertRole.run(adminId, platformId, 'admin', now);
+        for (const p of ADMIN_PERMISSIONS) {
+          insertPerm.run(adminId, p);
+        }
+      }
 
-    const memberId = randomUUID();
-    insertRole.run(memberId, platformId, 'member', now);
-    for (const p of MEMBER_PERMISSIONS) {
-      insertPerm.run(memberId, p);
-    }
+      // Check if member exists
+      const memberExists = this.db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'member' AND is_system = 1").get(platformId) as any;
+      if (!memberExists) {
+        const memberId = randomUUID();
+        insertRole.run(memberId, platformId, 'member', now);
+        for (const p of MEMBER_PERMISSIONS) {
+          insertPerm.run(memberId, p);
+        }
+      }
+    })();
   }
 
   /** Create a custom (non-system) role. */
@@ -57,18 +67,21 @@ export class RoleService {
 
     const id = randomUUID();
     const now = Date.now();
-    this.db
-      .prepare(
-        'INSERT INTO roles (id, platform_id, name, is_system, created_at) VALUES (?, ?, ?, 0, ?)',
-      )
-      .run(id, platformId, name, now);
 
-    const insertPerm = this.db.prepare(
-      'INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)',
-    );
-    for (const p of permissions) {
-      insertPerm.run(id, p);
-    }
+    this.db.transaction(() => {
+      this.db
+        .prepare(
+          'INSERT INTO roles (id, platform_id, name, is_system, created_at) VALUES (?, ?, ?, 0, ?)',
+        )
+        .run(id, platformId, name, now);
+
+      const insertPerm = this.db.prepare(
+        'INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)',
+      );
+      for (const p of permissions) {
+        insertPerm.run(id, p);
+      }
+    })();
 
     return {
       id,
@@ -102,13 +115,15 @@ export class RoleService {
   updateRolePermissions(roleId: string, permissions: string[]): void {
     this.validatePermissions(permissions);
 
-    this.db.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(roleId);
-    const insert = this.db.prepare(
-      'INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)',
-    );
-    for (const p of permissions) {
-      insert.run(roleId, p);
-    }
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(roleId);
+      const insert = this.db.prepare(
+        'INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)',
+      );
+      for (const p of permissions) {
+        insert.run(roleId, p);
+      }
+    })();
   }
 
   /** Delete a custom role and all associated data. Throws on system roles. */
@@ -116,13 +131,16 @@ export class RoleService {
     const role = this.db
       .prepare('SELECT is_system FROM roles WHERE id = ?')
       .get(roleId) as any | undefined;
-    if (role && role.is_system === 1) {
+    if (!role) throw new Error('Role not found');
+    if (role.is_system === 1) {
       throw new Error('Cannot delete system role');
     }
 
-    this.db.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(roleId);
-    this.db.prepare('DELETE FROM platform_user_roles WHERE role_id = ?').run(roleId);
-    this.db.prepare('DELETE FROM roles WHERE id = ?').run(roleId);
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(roleId);
+      this.db.prepare('DELETE FROM platform_user_roles WHERE role_id = ?').run(roleId);
+      this.db.prepare('DELETE FROM roles WHERE id = ?').run(roleId);
+    })();
   }
 
   /** Assign a role to a user. Idempotent via INSERT OR IGNORE. */
