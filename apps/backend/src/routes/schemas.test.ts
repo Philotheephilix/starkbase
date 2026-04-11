@@ -28,16 +28,34 @@ vi.mock('axios', () => {
 
 async function bootstrap(db: ReturnType<typeof createDb>) {
   const app = buildApp(db);
+
+  // Create owner and platform
+  const ownerRegRes = await app.inject({
+    method: 'POST', url: '/owners/register',
+    payload: { username: `owner_${Date.now()}`, password: 'ownerpass123' },
+  });
+  const { token: ownerToken } = JSON.parse(ownerRegRes.body);
   const platRes = await app.inject({
-    method: 'POST', url: '/platforms', payload: { name: 'Test' },
+    method: 'POST', url: '/owners/platforms',
+    headers: { Authorization: `Bearer ${ownerToken}` },
+    payload: { name: 'Test' },
   });
   const { apiKey, id: platformId } = JSON.parse(platRes.body);
 
+  // Register user
   const regRes = await app.inject({
     method: 'POST', url: '/auth/register',
     payload: { apiKey, username: 'alice', password: 'secret' },
   });
   const { sessionToken } = JSON.parse(regRes.body);
+
+  // Assign admin role so user has all permissions needed for tests
+  const adminRole = db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'admin'").get(platformId) as any;
+  const user = db.prepare("SELECT id FROM platform_users WHERE platform_id = ? AND username = 'alice'").get(platformId) as any;
+  if (adminRole && user) {
+    db.prepare("INSERT OR IGNORE INTO platform_user_roles (user_id, role_id, assigned_by, assigned_at) VALUES (?, ?, 'system', ?)").run(user.id, adminRole.id, Date.now());
+  }
+
   return { app, platformId, sessionToken };
 }
 

@@ -57,14 +57,35 @@ vi.mock('starknet', () => ({
 
 async function bootstrap(db: ReturnType<typeof createDb>) {
   const app = buildApp(db);
-  const platRes = await app.inject({ method: 'POST', url: '/platforms', payload: { name: 'TestGame' } });
-  const { apiKey } = JSON.parse(platRes.body);
+
+  // Create owner and platform
+  const ownerRegRes = await app.inject({
+    method: 'POST', url: '/owners/register',
+    payload: { username: `owner_${Date.now()}`, password: 'ownerpass123' },
+  });
+  const { token: ownerToken } = JSON.parse(ownerRegRes.body);
+  const platRes = await app.inject({
+    method: 'POST', url: '/owners/platforms',
+    headers: { Authorization: `Bearer ${ownerToken}` },
+    payload: { name: 'TestGame' },
+  });
+  const { apiKey, id: platformId } = JSON.parse(platRes.body);
+
+  // Register user
   const regRes = await app.inject({
     method: 'POST', url: '/auth/register',
     payload: { apiKey, username: 'alice', password: 'secret' },
   });
   const { sessionToken, walletAddress } = JSON.parse(regRes.body);
-  return { app, sessionToken, walletAddress, apiKey };
+
+  // Assign admin role so user has all permissions needed for tests
+  const adminRole = db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'admin'").get(platformId) as any;
+  const user = db.prepare("SELECT id FROM platform_users WHERE platform_id = ? AND username = 'alice'").get(platformId) as any;
+  if (adminRole && user) {
+    db.prepare("INSERT OR IGNORE INTO platform_user_roles (user_id, role_id, assigned_by, assigned_at) VALUES (?, ?, 'system', ?)").run(user.id, adminRole.id, Date.now());
+  }
+
+  return { app, sessionToken, walletAddress, apiKey, platformId };
 }
 
 describe('Token routes', () => {
@@ -133,7 +154,7 @@ describe('Token routes', () => {
   });
 
   it('POST /tokens/:address/mint returns 403 for non-creator', async () => {
-    const { app, sessionToken, walletAddress, apiKey } = await bootstrap(db);
+    const { app, sessionToken, walletAddress, apiKey, platformId } = await bootstrap(db);
 
     // alice deploys the token
     const deployRes = await app.inject({
@@ -150,6 +171,13 @@ describe('Token routes', () => {
     });
     const { sessionToken: bobToken, walletAddress: bobWallet } = JSON.parse(regRes2.body);
     expect(bobWallet).not.toBe(walletAddress); // wallets must differ for 403 check to be meaningful
+
+    // Assign admin role to bob so he passes permission middleware (the 403 should come from creator check)
+    const adminRole = db.prepare("SELECT id FROM roles WHERE platform_id = ? AND name = 'admin'").get(platformId) as any;
+    const bobUser = db.prepare("SELECT id FROM platform_users WHERE platform_id = ? AND username = 'bob'").get(platformId) as any;
+    if (adminRole && bobUser) {
+      db.prepare("INSERT OR IGNORE INTO platform_user_roles (user_id, role_id, assigned_by, assigned_at) VALUES (?, ?, 'system', ?)").run(bobUser.id, adminRole.id, Date.now());
+    }
 
     // bob tries to mint alice's token — should get 403 (wrong creator, same platform)
     const res = await app.inject({
