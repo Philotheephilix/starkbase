@@ -50,3 +50,6 @@ export type {
   EventRecord,
   EventMint,
 } from '@starkbase/types';
+
+export { OwnerClient } from './owner-client';
+export type { OwnerClientConfig } from './owner-client';
