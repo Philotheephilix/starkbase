@@ -90,6 +90,14 @@ export function buildApp(db?: Database.Database) {
 }
 
 if (require.main === module) {
+  const REQUIRED_ENV = ['JWT_OWNER_SECRET', 'JWT_USER_SECRET', 'STARKBASE_MASTER_SECRET', 'DEPLOYER_ADDRESS', 'DEPLOYER_PRIVATE_KEY'];
+  for (const key of REQUIRED_ENV) {
+    if (!process.env[key]) {
+      console.error(`FATAL: ${key} environment variable is required`);
+      process.exit(1);
+    }
+  }
+
   const app = buildApp();
   app.listen({ port: Number(process.env.PORT) || 8080, host: '0.0.0.0' }, (err) => {
     if (err) { app.log.error(err); process.exit(1); }
