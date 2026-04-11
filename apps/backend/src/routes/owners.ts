@@ -37,6 +37,9 @@ export async function ownerRoutes(app: FastifyInstance) {
 
   app.post('/login', async (request, reply) => {
     const { username, password } = request.body as any;
+    if (!username || !password) {
+      return reply.status(400).send({ error: 'Username and password are required' });
+    }
 
     try {
       const result = await ownerService.login({ username, password });
@@ -177,6 +180,9 @@ export async function ownerRoutes(app: FastifyInstance) {
     }
 
     const { roleId } = request.body as any;
+    if (!roleId) {
+      return reply.status(400).send({ error: 'roleId is required' });
+    }
     roleService.assignRole(userId, roleId, request.owner!.ownerId);
 
     auditService.log({
@@ -270,18 +276,25 @@ export async function ownerRoutes(app: FastifyInstance) {
     }
 
     const { name, permissions } = request.body as any;
-    const role = roleService.createRole(platformId, name, permissions);
+    if (!name || !permissions) {
+      return reply.status(400).send({ error: 'name and permissions are required' });
+    }
 
-    auditService.log({
-      actorType: 'owner',
-      actorId: request.owner!.ownerId,
-      platformId,
-      action: 'role:created',
-      targetType: 'role',
-      targetId: role.id,
-    });
-
-    return role;
+    try {
+      const role = roleService.createRole(platformId, name, permissions);
+      auditService.log({
+        actorType: 'owner',
+        actorId: request.owner!.ownerId,
+        platformId,
+        action: 'role:created',
+        targetType: 'role',
+        targetId: role.id,
+        ipAddress: request.ip,
+      });
+      return role;
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
   });
 
   app.put('/platforms/:platformId/roles/:roleId', async (request, reply) => {
@@ -294,18 +307,25 @@ export async function ownerRoutes(app: FastifyInstance) {
     }
 
     const { permissions } = request.body as any;
-    roleService.updateRolePermissions(roleId, permissions);
+    if (!permissions) {
+      return reply.status(400).send({ error: 'permissions are required' });
+    }
 
-    auditService.log({
-      actorType: 'owner',
-      actorId: request.owner!.ownerId,
-      platformId,
-      action: 'role:updated',
-      targetType: 'role',
-      targetId: roleId,
-    });
-
-    return roleService.getRole(roleId);
+    try {
+      roleService.updateRolePermissions(roleId, permissions);
+      auditService.log({
+        actorType: 'owner',
+        actorId: request.owner!.ownerId,
+        platformId,
+        action: 'role:updated',
+        targetType: 'role',
+        targetId: roleId,
+        ipAddress: request.ip,
+      });
+      return roleService.getRole(roleId);
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
   });
 
   app.delete('/platforms/:platformId/roles/:roleId', async (request, reply) => {
@@ -317,18 +337,21 @@ export async function ownerRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'You do not own this platform' });
     }
 
-    roleService.deleteRole(roleId);
-
-    auditService.log({
-      actorType: 'owner',
-      actorId: request.owner!.ownerId,
-      platformId,
-      action: 'role:deleted',
-      targetType: 'role',
-      targetId: roleId,
-    });
-
-    return { success: true };
+    try {
+      roleService.deleteRole(roleId);
+      auditService.log({
+        actorType: 'owner',
+        actorId: request.owner!.ownerId,
+        platformId,
+        action: 'role:deleted',
+        targetType: 'role',
+        targetId: roleId,
+        ipAddress: request.ip,
+      });
+      return { success: true };
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
   });
 
   // ── Settings ─────────────────────────────────────────────────────────
@@ -344,6 +367,8 @@ export async function ownerRoutes(app: FastifyInstance) {
 
     const { allowedOrigins, registrationEnabled } = request.body as any;
     const now = Math.floor(Date.now() / 1000);
+    const originsJson = allowedOrigins ? JSON.stringify(allowedOrigins) : null;
+    const regEnabled = registrationEnabled !== undefined ? (registrationEnabled ? 1 : 0) : null;
 
     db.prepare(`
       INSERT INTO platform_settings (platform_id, allowed_origins, registration_enabled, updated_at)
@@ -354,13 +379,21 @@ export async function ownerRoutes(app: FastifyInstance) {
         updated_at = ?
     `).run(
       platformId,
-      allowedOrigins ?? null,
-      registrationEnabled ?? 1,
+      originsJson,
+      regEnabled ?? 1,
       now,
-      allowedOrigins ?? null,
-      registrationEnabled ?? null,
+      originsJson,
+      regEnabled,
       now,
     );
+
+    auditService.log({
+      actorType: 'owner',
+      actorId: request.owner!.ownerId,
+      platformId,
+      action: 'platform:settings_updated',
+      ipAddress: request.ip,
+    });
 
     return { success: true };
   });
@@ -405,12 +438,33 @@ export async function ownerRoutes(app: FastifyInstance) {
     }
 
     const { name, maxFileSize, maxTotalSize, allowedMimeTypes } = request.body as any;
+    if (!name) {
+      return reply.status(400).send({ error: 'Registry name is required' });
+    }
+
     const id = randomUUID();
     const now = Math.floor(Date.now() / 1000);
 
-    db.prepare(
-      'INSERT INTO storage_registries (id, platform_id, name, max_file_size, max_total_size, current_total_size, allowed_mime_types, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)'
-    ).run(id, platformId, name, maxFileSize ?? 0, maxTotalSize ?? 0, allowedMimeTypes ? JSON.stringify(allowedMimeTypes) : null, now);
+    try {
+      db.prepare(
+        'INSERT INTO storage_registries (id, platform_id, name, max_file_size, max_total_size, current_total_size, allowed_mime_types, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)'
+      ).run(id, platformId, name, maxFileSize ?? 0, maxTotalSize ?? 0, allowedMimeTypes ? JSON.stringify(allowedMimeTypes) : null, now);
+    } catch (err: any) {
+      if (err.message?.includes('UNIQUE constraint')) {
+        return reply.status(409).send({ error: 'Registry name already exists in this platform' });
+      }
+      throw err;
+    }
+
+    auditService.log({
+      actorType: 'owner',
+      actorId: request.owner!.ownerId,
+      platformId,
+      action: 'registry:created',
+      targetType: 'registry',
+      targetId: id,
+      ipAddress: request.ip,
+    });
 
     return { id, name, platformId, maxFileSize: maxFileSize ?? 0, maxTotalSize: maxTotalSize ?? 0, allowedMimeTypes: allowedMimeTypes ?? null, createdAt: now };
   });
@@ -436,8 +490,12 @@ export async function ownerRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'You do not own this platform' });
     }
 
+    const existing = db.prepare('SELECT * FROM storage_registries WHERE id = ? AND platform_id = ?').get(registryId, platformId);
+    if (!existing) {
+      return reply.status(404).send({ error: 'Registry not found' });
+    }
+
     const { maxFileSize, maxTotalSize, allowedMimeTypes } = request.body as any;
-    const now = Math.floor(Date.now() / 1000);
 
     db.prepare(`
       UPDATE storage_registries SET
@@ -467,6 +525,16 @@ export async function ownerRoutes(app: FastifyInstance) {
 
     db.prepare('UPDATE blob_files SET deleted = 1 WHERE registry_id = ?').run(registryId);
     db.prepare('DELETE FROM storage_registries WHERE id = ? AND platform_id = ?').run(registryId, platformId);
+
+    auditService.log({
+      actorType: 'owner',
+      actorId: request.owner!.ownerId,
+      platformId,
+      action: 'registry:deleted',
+      targetType: 'registry',
+      targetId: registryId,
+      ipAddress: request.ip,
+    });
 
     return { success: true };
   });
