@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { runMigrations } from './migrations';
 
 const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'starkbase.db');
 
@@ -164,6 +165,7 @@ export function createDb(dbPath: string = DB_PATH): Database.Database {
   for (const m of MIGRATIONS) {
     try { db.exec(m); } catch { /* column already exists */ }
   }
+  runMigrations(db);
   return db;
 }
 

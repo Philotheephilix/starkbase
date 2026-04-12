@@ -32,7 +32,7 @@ beforeEach(() => {
   db = createDb(':memory:');
   platformSvc = new PlatformService(db);
   walletSvc = new WalletService('test-secret');
-  authSvc = new AuthService(db, walletSvc, platformSvc);
+  authSvc = new AuthService(db, walletSvc, platformSvc, 'test-jwt-secret');
 
   const platform = platformSvc.createPlatform('Test App');
   apiKey = platform.apiKey;

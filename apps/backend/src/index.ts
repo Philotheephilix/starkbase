@@ -7,8 +7,14 @@ import { getDb } from './db/index';
 import { WalletService } from './services/wallet-service';
 import { PlatformService } from './services/platform-service';
 import { AuthService } from './services/auth-service';
-import { authMiddleware } from './middleware/auth';
+import { createAuthMiddleware } from './middleware/auth';
+import { createScopeMiddleware } from './middleware/scope';
+import { createPermissionMiddleware } from './middleware/permission';
 import { authRoutes } from './routes/auth';
+import { ownerRoutes } from './routes/owners';
+import { OwnerService } from './services/owner-service';
+import { RoleService } from './services/role-service';
+import { AuditService } from './services/audit-service';
 import { contractRoutes } from './routes/contracts';
 import { storageRoutes } from './routes/storage';
 import { StorageService } from './services/storage-service';
@@ -27,12 +33,14 @@ import { EventService } from './services/event-service';
 import { eventRoutes } from './routes/events';
 
 const MASTER_SECRET = process.env.STARKBASE_MASTER_SECRET ?? 'dev-master-secret';
+const JWT_OWNER_SECRET = process.env.JWT_OWNER_SECRET ?? 'dev-owner-secret';
+const JWT_USER_SECRET = process.env.JWT_USER_SECRET ?? 'dev-user-secret';
 
 export function buildApp(db?: Database.Database) {
   const resolvedDb = db ?? getDb();
   const walletSvc = new WalletService(MASTER_SECRET);
   const platformSvc = new PlatformService(resolvedDb);
-  const authSvc = new AuthService(resolvedDb, walletSvc, platformSvc);
+  const authSvc = new AuthService(resolvedDb, walletSvc, platformSvc, JWT_USER_SECRET);
   const storageSvc = new StorageService(resolvedDb);
   const registrySvc = new BlobRegistryService(resolvedDb, walletSvc);
   const nftSvc = new NFTService(resolvedDb, walletSvc);
@@ -40,35 +48,35 @@ export function buildApp(db?: Database.Database) {
   const schemaSvc = new SchemaService(resolvedDb, registrySvc);
   const blobFileSvc = new BlobFileService(resolvedDb, registrySvc);
   const eventSvc = new EventService(resolvedDb, walletSvc);
+  const ownerSvc = new OwnerService(resolvedDb, walletSvc, JWT_OWNER_SECRET);
+  const roleSvc = new RoleService(resolvedDb);
+  const auditSvc = new AuditService(resolvedDb);
 
   // maxParamLength: EigenDA cert hex strings are several hundred chars; default 100 is too short
-  const app = Fastify({ logger: false, maxParamLength: 4096 });
+  // bodyLimit: 2 MB — accommodates small blob uploads but prevents DoS via massive payloads
+  const app = Fastify({ logger: false, maxParamLength: 4096, bodyLimit: 2 * 1024 * 1024 });
 
   app.register(cors, { origin: true });
   app.register(helmet, { contentSecurityPolicy: false });
 
-  app.addHook('onRequest', async (req, reply) => {
-    await authMiddleware(req, reply);
-  });
+  // Middleware chain: auth → scope → permission
+  app.addHook('onRequest', createAuthMiddleware(JWT_OWNER_SECRET, JWT_USER_SECRET, resolvedDb));
+  app.addHook('onRequest', createScopeMiddleware((ownerId, platformId) => ownerSvc.ownsPlatform(ownerId, platformId), resolvedDb));
+  app.addHook('onRequest', createPermissionMiddleware((userId) => roleSvc.getUserPermissions(userId)));
+
+  // Decorate for route access
+  app.decorate('ownerService', ownerSvc);
+  app.decorate('roleService', roleSvc);
+  app.decorate('auditService', auditSvc);
+  app.decorate('db', resolvedDb);
 
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
-  // Platform management (no auth — internal/dev use)
-  app.get('/platforms', async () => {
-    return platformSvc.listAll();
-  });
+  // Owner routes (separate auth system)
+  app.register(ownerRoutes, { prefix: '/owners' });
 
-  app.get<{ Params: { wallet: string } }>('/platforms/wallet/:wallet', async (req) => {
-    return platformSvc.listByWallet(req.params.wallet);
-  });
-
-  app.post<{ Body: { name: string; creatorWallet?: string } }>('/platforms', async (req) => {
-    console.log('[POST /platforms] body:', JSON.stringify(req.body));
-    return platformSvc.createPlatform(req.body.name, req.body.creatorWallet ?? '');
-  });
-
+  // User-facing routes
   app.register(authRoutes, { prefix: '/auth', authSvc } as any);
-
   app.register(contractRoutes, { prefix: '/contracts' });
   app.register(storageRoutes, { prefix: '/storage', storageSvc } as any);
   app.register(blobRegistryRoutes, { prefix: '/registry', registrySvc } as any);
@@ -83,6 +91,14 @@ export function buildApp(db?: Database.Database) {
 }
 
 if (require.main === module) {
+  const REQUIRED_ENV = ['JWT_OWNER_SECRET', 'JWT_USER_SECRET', 'STARKBASE_MASTER_SECRET', 'DEPLOYER_ADDRESS', 'DEPLOYER_PRIVATE_KEY'];
+  for (const key of REQUIRED_ENV) {
+    if (!process.env[key]) {
+      console.error(`FATAL: ${key} environment variable is required`);
+      process.exit(1);
+    }
+  }
+
   const app = buildApp();
   app.listen({ port: Number(process.env.PORT) || 8080, host: '0.0.0.0' }, (err) => {
     if (err) { app.log.error(err); process.exit(1); }

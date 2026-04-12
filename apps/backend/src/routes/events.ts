@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { EventService } from '../services/event-service';
+import { PERMISSIONS } from '../constants/permissions';
 
 export async function eventRoutes(
   app: FastifyInstance,
@@ -10,7 +11,7 @@ export async function eventRoutes(
   // Create event — deploys EventNFT contract
   app.post<{
     Body: { name: string; description: string; imageUrl: string; maxSupply?: number };
-  }>('/', async (req, reply) => {
+  }>('/', { config: { permission: PERMISSIONS.EVENTS_CREATE } }, async (req, reply) => {
     const user = (req as any).user;
     const event = await svc.createEvent(
       user.platformId,
@@ -25,13 +26,13 @@ export async function eventRoutes(
   });
 
   // List events for platform
-  app.get('/', async (req) => {
+  app.get('/', { config: { permission: PERMISSIONS.SCHEMAS_READ } }, async (req) => {
     const user = (req as any).user;
     return svc.listEvents(user.platformId);
   });
 
   // Get single event
-  app.get<{ Params: { id: string } }>('/:id', async (req) => {
+  app.get<{ Params: { id: string } }>('/:id', { config: { permission: PERMISSIONS.SCHEMAS_READ } }, async (req) => {
     const user = (req as any).user;
     return svc.getEvent(req.params.id, user.platformId);
   });
@@ -40,7 +41,7 @@ export async function eventRoutes(
   app.post<{
     Params: { id: string };
     Body: { recipient: string };
-  }>('/:id/mint', async (req, reply) => {
+  }>('/:id/mint', { config: { permission: PERMISSIONS.EVENTS_MINT } }, async (req, reply) => {
     const user = (req as any).user;
     const mint = await svc.mintToUser(
       req.params.id,
@@ -53,7 +54,7 @@ export async function eventRoutes(
   });
 
   // List mints for event
-  app.get<{ Params: { id: string } }>('/:id/mints', async (req) => {
+  app.get<{ Params: { id: string } }>('/:id/mints', { config: { permission: PERMISSIONS.SCHEMAS_READ } }, async (req) => {
     const user = (req as any).user;
     return svc.listMints(req.params.id, user.platformId);
   });

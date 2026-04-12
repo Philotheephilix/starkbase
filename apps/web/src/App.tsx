@@ -38,10 +38,11 @@ export default function App() {
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Load platforms filtered by current user's wallet
-  const loadPlatforms = useCallback(async () => {
+  const loadPlatforms = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!user?.walletAddress) return;
     try {
       const list = await client.platforms.listByWallet(user.walletAddress);
+      if (signal?.cancelled) return;
       setPlatforms(list);
       // Auto-select stored platform
       const storedId = localStorage.getItem('sb_platform_id');
@@ -55,7 +56,10 @@ export default function App() {
   }, [client, user?.walletAddress]);
 
   useEffect(() => {
-    if (isAuthenticated && user?.walletAddress) loadPlatforms();
+    if (!isAuthenticated || !user?.walletAddress) return;
+    const signal = { cancelled: false };
+    loadPlatforms(signal);
+    return () => { signal.cancelled = true; };
   }, [isAuthenticated, user?.walletAddress, loadPlatforms]);
 
   // Close dropdowns on outside click

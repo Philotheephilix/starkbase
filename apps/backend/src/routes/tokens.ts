@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { TokenService } from '../services/token-service';
+import { PERMISSIONS } from '../constants/permissions';
 
 export async function tokenRoutes(
   app: FastifyInstance,
@@ -10,7 +11,7 @@ export async function tokenRoutes(
   // Deploy a new token contract — only authenticated users
   app.post<{
     Body: { name: string; symbol: string; initialSupply: string; recipientAddress: string };
-  }>('/deploy', async (req, reply) => {
+  }>('/deploy', { config: { permission: PERMISSIONS.TOKENS_DEPLOY } }, async (req, reply) => {
     const user = (req as any).user;
     const token = await svc.deployToken(
       req.body.name,
@@ -28,7 +29,7 @@ export async function tokenRoutes(
   app.post<{
     Params: { address: string };
     Body: { recipient: string; amount: string };
-  }>('/:address/mint', async (req, reply) => {
+  }>('/:address/mint', { config: { permission: PERMISSIONS.TOKENS_MINT } }, async (req, reply) => {
     const user = (req as any).user;
     const result = await svc.mintToken(
       req.params.address,
@@ -42,13 +43,13 @@ export async function tokenRoutes(
   });
 
   // List all tokens for the authenticated platform
-  app.get('/', async (req) => {
+  app.get('/', { config: { permission: PERMISSIONS.SCHEMAS_READ } }, async (req) => {
     const user = (req as any).user;
     return svc.listTokens(user.platformId);
   });
 
   // Fetch on-chain mint history from Starknet RPC
-  app.get<{ Params: { address: string } }>('/:address/history', async (req) => {
+  app.get<{ Params: { address: string } }>('/:address/history', { config: { permission: PERMISSIONS.SCHEMAS_READ } }, async (req) => {
     return svc.getMintHistory(req.params.address);
   });
 }

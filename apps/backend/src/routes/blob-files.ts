@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { BlobFileService } from '../services/blob-file-service';
+import { PERMISSIONS } from '../constants/permissions';
 
 type AuthUser = { walletAddress: string; platformId: string };
 
@@ -17,7 +18,7 @@ export async function blobFileRoutes(
   // onchain=true anchors the commitment in the registry contract (immutable, cannot delete)
   app.post<{
     Body: { data: string; filename?: string; mimeType?: string; onchain?: boolean };
-  }>('/', async (req, reply) => {
+  }>('/', { config: { permission: PERMISSIONS.BLOBS_UPLOAD } }, async (req, reply) => {
     try {
       const { walletAddress, platformId } = getUser(req);
       const buffer = Buffer.from(req.body.data, 'base64');
@@ -36,7 +37,7 @@ export async function blobFileRoutes(
   });
 
   // GET /blobs — list all non-deleted blobs for the platform
-  app.get('/', async (req, reply) => {
+  app.get('/', { config: { permission: PERMISSIONS.BLOBS_READ } }, async (req, reply) => {
     try {
       const { platformId } = getUser(req);
       return svc.list(platformId);
@@ -46,7 +47,7 @@ export async function blobFileRoutes(
   });
 
   // GET /blobs/:id/meta — metadata only
-  app.get<{ Params: { id: string } }>('/:id/meta', async (req, reply) => {
+  app.get<{ Params: { id: string } }>('/:id/meta', { config: { permission: PERMISSIONS.BLOBS_READ } }, async (req, reply) => {
     try {
       const { platformId } = getUser(req);
       return svc.getMetadata(req.params.id, platformId);
@@ -56,7 +57,7 @@ export async function blobFileRoutes(
   });
 
   // GET /blobs/:id — download blob data
-  app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
+  app.get<{ Params: { id: string } }>('/:id', { config: { permission: PERMISSIONS.BLOBS_READ } }, async (req, reply) => {
     try {
       const { platformId } = getUser(req);
       const { record, data } = await svc.get(req.params.id, platformId);
@@ -71,7 +72,7 @@ export async function blobFileRoutes(
   });
 
   // DELETE /blobs/:id — soft-delete (blocked for onchain blobs)
-  app.delete<{ Params: { id: string } }>('/:id', async (req, reply) => {
+  app.delete<{ Params: { id: string } }>('/:id', { config: { permission: PERMISSIONS.BLOBS_DELETE } }, async (req, reply) => {
     try {
       const { platformId } = getUser(req);
       svc.delete(req.params.id, platformId);
@@ -82,7 +83,7 @@ export async function blobFileRoutes(
   });
 
   // GET /blobs/:id/verify — cross-reference SQLite commitment vs onchain registry
-  app.get<{ Params: { id: string } }>('/:id/verify', async (req, reply) => {
+  app.get<{ Params: { id: string } }>('/:id/verify', { config: { permission: PERMISSIONS.BLOBS_READ } }, async (req, reply) => {
     try {
       const { platformId } = getUser(req);
       return await svc.verify(req.params.id, platformId);

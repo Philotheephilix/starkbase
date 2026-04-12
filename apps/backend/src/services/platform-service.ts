@@ -1,5 +1,5 @@
-import crypto from 'crypto';
 import type Database from 'better-sqlite3';
+import { generateApiKey, hashApiKey, newId } from '../utils/crypto';
 
 export interface Platform {
   id: string;
@@ -21,13 +21,14 @@ export class PlatformService {
   constructor(private db: Database.Database) {}
 
   createPlatform(name: string, creatorWallet: string = ''): Platform {
-    const id = crypto.randomUUID();
-    const apiKey = `sb_${crypto.randomBytes(24).toString('hex')}`;
+    const id = newId();
+    const rawApiKey = generateApiKey();
+    const apiKeyHash = hashApiKey(rawApiKey);
     const createdAt = Math.floor(Date.now() / 1000);
     this.db
       .prepare('INSERT INTO platforms (id, name, api_key, creator_wallet, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(id, name, apiKey, creatorWallet, createdAt);
-    return { id, name, apiKey, creatorWallet, createdAt };
+      .run(id, name, apiKeyHash, creatorWallet, createdAt);
+    return { id, name, apiKey: rawApiKey, creatorWallet, createdAt };
   }
 
   listByWallet(walletAddress: string): Platform[] {
@@ -52,9 +53,10 @@ export class PlatformService {
   }
 
   getByApiKey(apiKey: string): Platform | null {
+    const hash = hashApiKey(apiKey);
     const row = this.db
-      .prepare('SELECT * FROM platforms WHERE api_key = ?')
-      .get(apiKey) as PlatformRow | undefined;
+      .prepare('SELECT * FROM platforms WHERE api_key = ? AND deleted_at IS NULL')
+      .get(hash) as PlatformRow | undefined;
     return row ? this.toModel(row) : null;
   }
 

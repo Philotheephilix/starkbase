@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStarkbase } from '@starkbase/sdk';
+import { CopyBtn } from '../components/ui/copy-btn';
 
 interface PlatformUser {
   userId: string;
@@ -7,21 +8,6 @@ interface PlatformUser {
   walletAddress: string;
   deployed: boolean;
   createdAt: number;
-}
-
-function CopyBtn({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <button className={`copy-btn${copied ? ' ok' : ''}`} onClick={copy}>
-      {copied ? 'copied' : 'copy'}
-    </button>
-  );
 }
 
 function formatDate(epoch: number): string {
@@ -46,45 +32,40 @@ export default function UsersView() {
   const [createError, setCreateError] = useState('');
 
   const platformId = localStorage.getItem('sb_platform_id');
-  const apiKey = localStorage.getItem('sb_api_key');
 
-  const loadUsers = useCallback(async () => {
+  const loadUsers = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!platformId) return;
     setLoading(true);
     setError('');
     try {
       const result = await client.auth.listUsers(platformId);
-      setUsers(result);
+      if (!signal?.cancelled) setUsers(result);
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? err.message ?? 'Failed to load users');
+      if (!signal?.cancelled) setError(err?.response?.data?.error ?? err.message ?? 'Failed to load users');
     } finally {
-      setLoading(false);
+      if (!signal?.cancelled) setLoading(false);
     }
   }, [client, platformId]);
 
   useEffect(() => {
-    loadUsers();
+    const signal = { cancelled: false };
+    loadUsers(signal);
+    return () => { signal.cancelled = true; };
   }, [loadUsers]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUsername.trim() || !newPassword.trim() || !apiKey) return;
+    if (!newUsername.trim() || !newPassword.trim() || !platformId) return;
     setCreating(true);
     setCreateError('');
     try {
-      const res = await fetch('http://localhost:8080/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, username: newUsername.trim(), password: newPassword.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create user');
+      await client.auth.register({ username: newUsername.trim(), password: newPassword.trim() });
       setNewUsername('');
       setNewPassword('');
       setModalOpen(false);
       loadUsers();
     } catch (err: any) {
-      setCreateError(err.message ?? 'Failed to create user');
+      setCreateError(err?.response?.data?.error ?? err.message ?? 'Failed to create user');
     } finally {
       setCreating(false);
     }
@@ -181,9 +162,8 @@ export default function UsersView() {
             </thead>
             <tbody>
               {users.map(user => (
-                <>
+                <React.Fragment key={user.userId}>
                   <tr
-                    key={user.userId}
                     style={{ cursor: 'pointer' }}
                     onClick={() => setExpanded(expanded === user.userId ? null : user.userId)}
                   >
@@ -235,7 +215,7 @@ export default function UsersView() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>
