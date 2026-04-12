@@ -53,7 +53,8 @@ export function buildApp(db?: Database.Database) {
   const auditSvc = new AuditService(resolvedDb);
 
   // maxParamLength: EigenDA cert hex strings are several hundred chars; default 100 is too short
-  const app = Fastify({ logger: false, maxParamLength: 4096 });
+  // bodyLimit: 2 MB — accommodates small blob uploads but prevents DoS via massive payloads
+  const app = Fastify({ logger: false, maxParamLength: 4096, bodyLimit: 2 * 1024 * 1024 });
 
   app.register(cors, { origin: true });
   app.register(helmet, { contentSecurityPolicy: false });

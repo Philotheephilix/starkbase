@@ -74,7 +74,7 @@ async function bootstrap(db: ReturnType<typeof createDb>) {
   // Register user
   const regRes = await app.inject({
     method: 'POST', url: '/auth/register',
-    payload: { apiKey, username: 'alice', password: 'secret' },
+    payload: { apiKey, username: 'alice', password: 'secret123' },
   });
   const { sessionToken, walletAddress } = JSON.parse(regRes.body);
 
@@ -167,7 +167,7 @@ describe('Token routes', () => {
     // bob registers on the SAME platform as alice
     const regRes2 = await app.inject({
       method: 'POST', url: '/auth/register',
-      payload: { apiKey, username: 'bob', password: 'secret' },
+      payload: { apiKey, username: 'bob', password: 'secret123' },
     });
     const { sessionToken: bobToken, walletAddress: bobWallet } = JSON.parse(regRes2.body);
     expect(bobWallet).not.toBe(walletAddress); // wallets must differ for 403 check to be meaningful

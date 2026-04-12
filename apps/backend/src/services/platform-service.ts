@@ -55,7 +55,7 @@ export class PlatformService {
   getByApiKey(apiKey: string): Platform | null {
     const hash = hashApiKey(apiKey);
     const row = this.db
-      .prepare('SELECT * FROM platforms WHERE api_key = ?')
+      .prepare('SELECT * FROM platforms WHERE api_key = ? AND deleted_at IS NULL')
       .get(hash) as PlatformRow | undefined;
     return row ? this.toModel(row) : null;
   }

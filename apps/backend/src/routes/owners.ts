@@ -29,8 +29,11 @@ export async function ownerRoutes(app: FastifyInstance) {
     if (!username || !password) {
       return reply.status(400).send({ error: 'Username and password are required' });
     }
-    if (password.length < 8) {
-      return reply.status(400).send({ error: 'Password must be at least 8 characters' });
+    if (typeof username !== 'string' || username.length < 3 || username.length > 64) {
+      return reply.status(400).send({ error: 'Username must be 3-64 characters' });
+    }
+    if (typeof password !== 'string' || password.length < 8 || password.length > 256) {
+      return reply.status(400).send({ error: 'Password must be 8-256 characters' });
     }
 
     try {
@@ -88,7 +91,7 @@ export async function ownerRoutes(app: FastifyInstance) {
     }
 
     const platforms = db.prepare(
-      'SELECT p.id, p.name, p.created_at FROM platforms p JOIN owner_platforms op ON p.id = op.platform_id WHERE op.owner_id = ?'
+      'SELECT p.id, p.name, p.created_at FROM platforms p JOIN owner_platforms op ON p.id = op.platform_id WHERE op.owner_id = ? AND p.deleted_at IS NULL'
     ).all(request.owner!.ownerId);
 
     return platforms;
@@ -145,7 +148,7 @@ export async function ownerRoutes(app: FastifyInstance) {
       db.prepare('UPDATE blob_files SET deleted = 1 WHERE platform_id = ?').run(platformId);
       db.prepare('UPDATE schema_documents SET deleted = 1 WHERE platform_id = ?').run(platformId);
       // Nullify API key to prevent further auth against deleted platform
-      db.prepare('UPDATE platforms SET api_key = NULL WHERE id = ?').run(platformId);
+      db.prepare('UPDATE platforms SET deleted_at = ? WHERE id = ?').run(Math.floor(Date.now() / 1000), platformId);
       db.prepare('DELETE FROM platform_settings WHERE platform_id = ?').run(platformId);
       db.prepare('DELETE FROM owner_platforms WHERE platform_id = ?').run(platformId);
     })();
@@ -188,7 +191,11 @@ export async function ownerRoutes(app: FastifyInstance) {
     if (!roleId) {
       return reply.status(400).send({ error: 'roleId is required' });
     }
-    roleService.assignRole(userId, roleId, request.owner!.ownerId);
+    try {
+      roleService.assignRole(userId, roleId, request.owner!.ownerId);
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
 
     auditService.log({
       actorType: 'owner',
@@ -280,6 +287,9 @@ export async function ownerRoutes(app: FastifyInstance) {
       });
       return role;
     } catch (err: any) {
+      if (err.message?.includes('UNIQUE constraint')) {
+        return reply.status(409).send({ error: 'Role name already exists in this platform' });
+      }
       return reply.status(400).send({ error: err.message });
     }
   });

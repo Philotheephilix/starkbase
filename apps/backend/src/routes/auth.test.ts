@@ -55,8 +55,8 @@ describe('Auth routes', () => {
 
     const { apiKey } = await createPlatform(app, 'App');
 
-    await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'pass' } });
-    const res = await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'pass2' } });
+    await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'password123' } });
+    const res = await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'password456' } });
 
     expect(res.statusCode).toBe(409);
   });
@@ -67,8 +67,8 @@ describe('Auth routes', () => {
 
     const { apiKey } = await createPlatform(app, 'App');
 
-    await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'pass' } });
-    const res = await app.inject({ method: 'POST', url: '/auth/login', payload: { apiKey, username: 'alice', password: 'pass' } });
+    await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'password123' } });
+    const res = await app.inject({ method: 'POST', url: '/auth/login', payload: { apiKey, username: 'alice', password: 'password123' } });
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).sessionToken).toBeTruthy();
@@ -80,7 +80,7 @@ describe('Auth routes', () => {
 
     const { apiKey } = await createPlatform(app, 'App');
 
-    await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'pass' } });
+    await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'password123' } });
     const res = await app.inject({ method: 'POST', url: '/auth/login', payload: { apiKey, username: 'alice', password: 'wrong' } });
 
     expect(res.statusCode).toBe(401);
@@ -92,7 +92,7 @@ describe('Auth routes', () => {
 
     const { apiKey } = await createPlatform(app, 'App');
 
-    const regRes = await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'pass' } });
+    const regRes = await app.inject({ method: 'POST', url: '/auth/register', payload: { apiKey, username: 'alice', password: 'password123' } });
     const { sessionToken } = JSON.parse(regRes.body);
 
     const meRes = await app.inject({

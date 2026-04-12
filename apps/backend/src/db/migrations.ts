@@ -112,4 +112,8 @@ export function runMigrations(db: Database.Database): void {
   if (!hasColumn('blob_files', 'registry_id')) {
     db.exec(`ALTER TABLE blob_files ADD COLUMN registry_id TEXT REFERENCES storage_registries(id)`);
   }
+
+  if (!hasColumn('platforms', 'deleted_at')) {
+    db.exec(`ALTER TABLE platforms ADD COLUMN deleted_at INTEGER`);
+  }
 }

@@ -60,7 +60,7 @@ async function bootstrap(db: ReturnType<typeof createDb>) {
   // Register user
   const regRes = await app.inject({
     method: 'POST', url: '/auth/register',
-    payload: { apiKey, username: 'alice', password: 'secret' },
+    payload: { apiKey, username: 'alice', password: 'secret123' },
   });
   const { sessionToken, walletAddress } = JSON.parse(regRes.body);
 
